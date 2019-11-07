@@ -15,7 +15,7 @@
 
 创建sbt工程：File-->New -->Project
 
-![new_project](E:\webank_code\NoteBook\scala\new_project.png)
+![new_project](./new_project.png)
 
 新建工程后会，生成的目录结构如下：
 
@@ -129,5 +129,15 @@ object Main {
 ```shell
 >assembly
 根据项目配置的libraryDependencies进行打包
+```
+
+## 命令行模式
+
+在shell环境（windows cmd）直接运行scala进入命令行模式
+
+```shell
+$scala
+切换shell环境
+scala>
 ```
 
