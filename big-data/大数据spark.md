@@ -27,9 +27,13 @@ spark构成：
 
 ## Azkaban使用
 [【以下部分内容引】](https://www.cnblogs.com/honeybee/p/7921626.html)
+
 azkaban是一款可以通过UI调用spark进行大数据分析的开源软件平台
+
 主页：[https://azkaban.github.io/](https://azkaban.github.io/)
+
 github：[https://github.com/azkaban/azkaban](https://github.com/azkaban/azkaban)
+
 azkaban的工作流中的参数可以分为如下几个类型：
 
 |参数类型|作用域说明|
@@ -45,9 +49,11 @@ azkaban的工作流中的参数可以分为如下几个类型：
 ## RDD介绍
 以下引：[https://www.jianshu.com/p/248f3946ee31](https://www.jianshu.com/p/248f3946ee31)
 
-  RDD就像一个Numpy array或者一个Pandas series，可以视作一个有序的item集合
-  只不过，这些item并不存在driver端的内存里，而是被分割成很多个partitions，每个partition的数据存在集群的executor的内存中
-  在Spark里，所有的处理和计算任务都会被组织成一系列Resilient Distributed Dataset(弹性分布式数据集，简称RDD)上的transformations(转换) 和 actions(动作)。 
+​	RDD就像一个Numpy array或者一个Pandas series，可以视作一个有序的item集合
+
+​	只不过，这些item并不存在driver端的内存里，而是被分割成很多个partitions，每个partition的数据存在集群的executor的内存中
+
+​	在Spark里，所有的处理和计算任务都会被组织成一系列Resilient Distributed Dataset(弹性分布式数据集，简称RDD)上的transformations(转换) 和 actions(动作)。 
 
 + Transformations
 1. map() 对RDD的每一个item都执行同一个操作
