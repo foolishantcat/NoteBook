@@ -82,5 +82,7 @@ textFile = sc.textFile("file:///usr/local/spark/mycode/wordcount/word.txt")
 ```
 textFile是一个方法，用来加载文本数据，默认是从HDFS上加载，如果要加载本地文件，就必须使用file:///加路径的形式
 
-遇到的坑：
-RDD对象action不能嵌套调用，比如rdd_1.map(...., func_1(rdd_2))，会异常出错
+## 异常列表
+
+1. RDD对象action不能嵌套调用，比如rdd_1.map(...., func_1(rdd_2))，会异常出错
+2. 不能把过于大型的数据集合从RDD转成collect，collect是放到本机内存，会导致内存超限，应该在最终结果获取环节使用collect
