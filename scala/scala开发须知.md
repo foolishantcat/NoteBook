@@ -25,13 +25,13 @@
 
 |--src（源代码目录）
 
-​	|--main
+​		|--main
 
-​		|--scala（源码包放置在该目录下）
+​			|--scala（源码包放置在该目录下）
 
-​	|--test（单元测试目录）
+​		|--test（单元测试目录）
 
-​		|--scala
+​			|--scala
 
 |--build.sbt（工程构建文件）
 
@@ -86,7 +86,7 @@ object Main {
 
 ```shell
 >clean
-清除tarhget下生成的文件
+清除target下生成的文件
 ```
 
 - 更新
@@ -143,11 +143,11 @@ scala>
 
 ## 语法解析
 
-- scala深拷贝
+### scala深拷贝
 
 复写（overwrite）clone函数
 
-- 无参方法
+### 无参方法
 
 调用无参方法比如current时，你可以写上()，也可以不写：
 
@@ -386,3 +386,175 @@ scala> m1(r.nextInt)
 res23: List[Int] = List(-1982925840, -933815401)
 ```
 
+### 参数传递
+
+**val与def**
+
+`def`用于定义方法，`val`定义值。对于[返回函数值的方法]与[直接使用`val`定义的函数值]之间存在微妙的差异，即使他们都定义了相同的逻辑。例如：
+
+```scala
+val max = (x: Int, y: Int) => if (x > y) x else y 
+def max = (x: Int, y: Int) => if (x > y) x else y 
+```
+
+**语义差异**
+
+虽然两者之间仅存在一字之差，但却存在本质的差异。
+
+1.  `def`用于定义「方法」，而`val`用于定义「值」。
+2.  `def`定义的方法时，方法体并未被立即求值；而`val`在定义时，其引用的对象就被立即求值了。
+3.  `def`定义的方法，每次调用方法体就被求值一次；而`val`仅在定义变量时仅求值一次。
+
+例如，每次使用`val`定义的`max`，都是使用同一个函数值；也就是说，如下语句为真。
+
+```scala
+max eq max   // true
+```
+
+而每次使用`def`定义的`max`，都将返回不同的函数值；也就是说，如下语句为假。
+
+```scala
+max eq max   // false
+```
+
+其中，`eq`通过比较对象`id`实现比较对象间的同一性的。
+
+**lazy惰性**
+
+`def`在定义方法时并不会产生实例，但在每次方法调用时生成不同的实例；而`val`在定义变量时便生成实例，以后每次使用`val`定义的变量时，都将得到同一个实例。
+
+`lazy`的语义介于`def`与`val`之间。首先，`lazy val`与`val`语义类似，用于定义「值(value)」，包括函数值。
+
+```scala
+lazy val max = (x: Int, y: Int) => if (x > y) x else y 
+```
+
+其次，它又具有`def`的语义，它不会在定义`max`时就完成求值。但是，它与`def`不同，它会在第一次使用`max`时完成值的定义，对于以后再次使用`max`将返回相同的函数值。
+
+**参数传递**
+
+`Scala`存在两种参数传递的方式。
+
+- Pass-by-Value：按值传递
+- Pass-by-Name：按名传递
+
+**按值传递**
+
+默认情况下，`Scala`的参数是按照值传递的。
+
+```ruby
+def and(x: Boolean, y: Boolean) = x && y
+```
+
+对于如下调用语句：
+
+```scala
+and(false, s.contains("horance"))
+```
+
+表达式`s.contains("horance")`首先会被立即求值，然后才会传递给参数`y`；而在`and`函数体内再次使用`y`时，将不会再对`s.contains("horance")`表达式求值，直接获取最先开始被求值的结果。
+
+**传递函数**
+
+将上例`and`实现修改一下，让其具有函数类型的参数。
+
+```scala
+def and(x: () => Boolean, y: () => Boolean) = x() && y()
+```
+
+其中，`() => Boolean`等价于`Function0[Boolean]`，表示参数列表为空，返回值为`Boolean`的函数类型。
+
+调用方法时，传递参数必须显式地加上`() =>`的函数头。
+
+```scala
+and(() => false, () => s.contains("horance"))
+```
+
+此时，它等价于如下实现：
+
+```scala
+and(new Function0[Boolean] { 
+  def apply(): Boolean = false
+}, new Function0[Boolean] {
+  def apply(): Boolean = s.contains("horance")
+}
+```
+
+此时，`and`方法将按照「按值传递」将`Function0`的两个对象引用分别传递给了`x`与`y`的引用变量。但时，此时它们函数体，例如`s.contains("horance")`，在参数传递之前并没有被求值；直至在`and`的方法体内，`x`与`y`调用了`apply`方法时才被求值。
+
+也就是说，`and`方法可以等价实现为：
+
+```scala
+def and(x: () => Boolean, y: () => Boolean) = x.apply() && y.apply()
+```
+
+**按名传递**
+
+通过`Function0[R]`的参数类型，在传递参数前实现了延迟初始化的技术。但实现中，参数传递时必须构造`() => R`的函数值，并在调用点上显式地加上`()`完成`apply`方法的调用，存在很多的语法噪声。
+
+因此，`Scala`提供了另外一种参数传递的机制：按名传递。按名传递略去了所有`()`语法噪声。例如，函数实现中，`x`与`y`不用显式地加上`()`便可以完成调用。
+
+```php
+def and(x: => Boolean, y: => Boolean) = x && y
+```
+
+其次，调用点用户无需构造`() => R`的函数值，但它却拥有延迟初始化的功效。
+
+```scala
+and(false, s.contains("horance"))
+```
+
+**借贷模式**
+
+资源回收是计算机工程实践中一项重要的实现模式。对于具有`GC`的程序设计语言，它仅仅实现了内存资源的自动回收，而对于诸如文件`IO`，数据库连接，`Socket`连接等资源需要程序员自行实现资源的回收。
+
+该问题可以形式化地描述为：给定一个资源`R`，并将资源传递给用户空间，并回调算法`f: R => T`；当过程结束时资源自动释放。
+
+> - Input: Given resource: R
+> - Output：T
+> - Algorithm：Call back to user namespace: f: R => T, and make sure resource be closed on done.
+
+因此，该实现模式也常常被称为「借贷模式」，是保证资源自动回收的重要机制。本文通过`using`的抽象控制，透视`Scala`在这个领域的设计技术，以便巩固「按名传递」技术的应用。
+
+**控制抽象：`using` **
+
+```scala
+import scala.language.reflectiveCalls
+
+object using {
+  type Closeable = { def close(): Unit }
+
+  def apply[T <: Closeable, R](resource: => T)(f: T => R): R = {
+    var source = null.asInstanceOf[T]
+    try {
+      source = resource
+      f(source)
+    } finally {
+      if (source != null) source.close
+    }
+  }
+}
+```
+
+**客户端**
+
+例如如下程序，它读取用户根目录下的`README.md`文件，并传递给`using`，`using`会将文件句柄回调给用户空间，用户实现文件的逐行读取；当读取完成后，`using`自动关闭文件句柄，释放资源，但用户无需关心这个细节。
+
+```scala
+import scala.io.Source
+import scala.util.Properties
+
+def read: String = using(Source.fromFile(readme)) { 
+  _.getLines.mkString(Properties.lineSeparator)
+}
+```
+
+**鸭子编程**
+
+`type Closeable = { def close(): Unit }`定义了一个`Closeable`的类型别名，使得`T`必须是具有`close`方法的子类型，这是`Scala`支持「鸭子编程」的一种重要技术。例如，`File`满足`T`类型的特征，它具有`close`方法。
+
+**惰性求值**
+
+`resource: => T`是按照`by-name`传递，在实参传递形参过程中，并未对实参进行立即求值，而将求值推延至`resource: => T`的调用点。
+
+对于本例，`using(Source.fromFile(source))`语句中，`Source.fromFile(source)`并没有马上发生调用并传递给形参，而将求值推延至`source = resource`语句。
