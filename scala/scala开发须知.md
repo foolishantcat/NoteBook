@@ -1,5 +1,7 @@
 # Scala开发须知
 
+[TOC]
+
 ​	scala一般用于开发高并发高可用的网络后台程序，也可以用于开发spark程序。以下先介绍如何创建一个scala后台（命令行）程序需要的步骤。
 
 ## 开发环境搭建
@@ -53,6 +55,52 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.7")
 ```
 
 以上内容的作用是安装assembly打包模块。通常我们使用packge命令进行打包，但是引用第三方包的情况下，不会主动打包第三方包，造成编译通过，但是无法正确运行。提示：class 丢失
+
+- Idea（scala）编译须知：
+
+**scala不同大版本之间（如2.11和2.12）编译器所编译的jar包无法相互调用，会出现找不到Method的异常**
+
+使用msi镜像安装scala，同一台机器只能安装一个版本
+
+出错信息类似如下：
+
+```shell
+java.lang.NoSuchMethodError: scala.Predef$.ArrowAssoc(LLjava/lang/Object;
+...
+..
+.
+```
+
+目前有四种编译/打包方式：
+
+1. 使用PowerShell sbt命令行进行编译
+2. 使用Idea Terminal 调用sbt进行编译（同1）
+3. 使用Idea build编译
+4. 使用 maven-scala-plugin 插件进行编译（仅java mvn推荐这种方式）
+
+几种编译方式对比：
+
+- 使用PowerShell sbt
+
+调用的是windows配置的scala编译器进行编译，编译器跟随scala版本
+
+windows本机安装的是scala 2.12.8版本，所以编译器也是2.12.8版本
+
+- 使用Idea build
+
+调用的是File-->Project Structure-->Global Libraries里面声明的scala编译器进行编译
+
+该方式比较麻烦，而且如果不配置META_INF文件，会出现如下错误：
+
+```shell
+Error: Invalid or corrupt jarfile jar
+```
+
+这个报错表示找不到入口函数
+
+推荐不要使用这种方式打包
+
+**综上所述，使用sbt进行命令行（也可以使用Idea Terminal）打包是比较靠谱的**
 
 ## 创建hello world
 
@@ -131,6 +179,35 @@ object Main {
 根据项目配置的libraryDependencies进行打包
 ```
 
+编译中遇到的小bug：
+
+```shell
+sbt:DSP> [error] (compile:protocGenerate) error occurred while compiling protobuf files: Cannot run program "C:\Users\ethancao\protocjar5270970070978028348\bin\protoc.exe": CreateProcess error=1392, 文件或目录损坏且无法读取。
+
+解决办法：
+删除对应用户C:\Users\ethancao\protocjar5270970070978028348文件，一并删除类似protojar*文件，clean之后，重新编译即可
+```
+
+## 运行jar
+
+有两种方式：
+
+- 当只有一个main函数的jar包
+
+```shell
+java -jar **.jar
+```
+
+- 当有多个main函数入口的jar包，需要指明入口main函数
+
+```shell
+java -cp **.jar package.Main.ClassName > domainlog.out 2>&1 & tailf domain.out
+```
+
+其中-cp是将jar文件假如到classpath，这样java class loader就会找到匹配的类
+
+& tailf domain.out 表示执行完前面的命令并执行tailf查看日志命令
+
 ## 命令行模式
 
 在shell环境（windows cmd）直接运行scala进入命令行模式
@@ -140,6 +217,165 @@ $scala
 切换shell环境
 scala>
 ```
+
+## 日志配置
+
+我们今天要讲的一个日志组件：log4j 2.x
+
+官方网址： http://logging.apache.org/log4j/2.x/ 
+
+log4j能做什么？
+
+1. 将信息送到控制台，文件，GUI组件等
+2. 控制每条信息的输出格式
+3. 将信息分类，定义信息级别，细致地控制日志的输出
+
+引用方式：
+
+```scala
+libraryDependencies ++= Seq(
+  "org.apache.logging.log4j" % "log4j-api-scala_2.11" % "11.0",
+  "org.apache.logging.log4j" % "log4j-core" % "2.10.0",
+  "org.apache.logging.log4j" % "log4j-api" % "2.10.0"
+)
+```
+
+java包引用方式：
+
+```xml
+<dependency>
+	<groupId>org.apache.logging.log4j</groupId>
+	<artifactId>log4j-api-scala_${scala.binary.version}</artifactId>
+	<version>11.0</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+<dependency>
+	<groupId>org.apache.logging.log4j</groupId>
+	<artifactId>log4j-core</artifactId>
+	<version>2.10.0</version>
+</dependency>
+<dependency>
+	<groupId>org.apache.logging.log4j</groupId>
+	<artifactId>log4j-api</artifactId>
+	<version>2.10.0</version>
+</dependency>
+```
+
+
+
+在resource目录下面添加log4j2.xml文件，内容如下：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration status="error">
+    <!--     先定义所有的appender -->
+    <appenders>
+        <!--         这个输出控制台的配置 -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <!--             控制台只输出level及以上级别的信息（onMatch），其他的直接拒绝（onMismatch） -->
+            <ThresholdFilter level="trace" onMatch="ACCEPT" onMismatch="DENY"/>
+            <!--             这个都知道是输出日志的格式 -->
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5level %class{36} %L %M - %msg%xEx%n"/>
+        </Console>
+
+        <!--         文件会打印出所有信息，这个log每次运行程序会自动清空，由append属性决定，这个也挺有用的，适合临时测试用 -->
+        <!--         append为TRUE表示消息增加到指定文件中，false表示消息覆盖指定的文件内容，默认值是true -->
+        <File name="log" fileName="log/test.log" append="false">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5level %class{36} %L %M - %msg%xEx%n"/>
+        </File>
+
+        <!--          添加过滤器ThresholdFilter,可以有选择的输出某个级别以上的类别  onMatch="ACCEPT" onMismatch="DENY"意思是匹配就接受,否则直接拒绝  -->
+        <File name="ERROR" fileName="logs/error.log">
+            <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="%d{yyyy.MM.dd 'at' HH:mm:ss z} %-5level %class{36} %L %M - %msg%xEx%n"/>
+        </File>
+
+        <!--         这个会打印出所有的信息，每次大小超过size，则这size大小的日志会自动存入按年份-月份建立的文件夹下面并进行压缩，作为存档 -->
+        <RollingFile name="RollingFile" fileName="logs/web.log"
+                     filePattern="logs/$${date:yyyy-MM}/web-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout pattern="%d{yyyy-MM-dd 'at' HH:mm:ss z} %-5level %class{36} %L %M - %msg%xEx%n"/>
+            <SizeBasedTriggeringPolicy size="2MB"/>
+        </RollingFile>
+    </appenders>
+
+    <!--     然后定义logger，只有定义了logger并引入的appender，appender才会生效 -->
+    <loggers>
+        <!--         建立一个默认的root的logger -->
+        <root level="debug">
+            <appender-ref ref="RollingFile"/>
+            <appender-ref ref="Console"/>
+            <appender-ref ref="ERROR" />
+            <appender-ref ref="log"/>
+        </root>
+
+    </loggers>
+</configuration>
+```
+
+- 添加HasLogger特性（trait）
+
+```scala
+// 用于给其他类继承，使得继承者具有打印日志的能力
+trait HasLogger {
+  implicit val log: Logger = LogManager.getLogger(this.getClass)
+}
+```
+
+- 使用方式：使用的类（object和class）使用extends或者with继承该特性（trait）
+
+> - 日志级别：
+> > trace：追踪，就是程序推进一下，可以写个trace输出
+> >
+> > debug：调试，一般作为最低级别，trace基本不用。
+> >
+> > info：输出重要的信息，使用较多
+> >
+> > warn：警告，有些信息不是错误信息，但也要给程序员一些提示。
+> >
+> > error：错误信息。用的也很多。
+> >
+> > fatal：致命错误。级别较高，这种级别不用调试了，重写吧……
+
+机制：如果一条日志信息的级别大于等于配置文件的级别，就记录
+
+- 输出源：
+
+Console（输出到控制台）、FILE（输出到文件）等。
+
+> - 布局方式：
+
+> > SimpleLayout：以简单的形式显示
+>>
+> > HTMLLayout：以HTML表格显示
+>>
+> > PatternLayout：自定义形式显示
+>>
+> > 在Log4J2中基本采用PatternLayout自定义日志布局。
+
+>- 自定义格式
+>
+>>%t：线程名称
+>>
+>>%p: 日志级别
+>>
+>> %c：日志消息所在类名 
+>>
+>> %m：消息内容 
+>>
+>> %M：输出执行方法 
+>>
+>>%d：发生时间，%d{yyyy-MM-dd HH:mm:ss,SSS}，输出类似：2011-10-18 22:10:28,921
+>>
+>>%x: 输出和当前线程相关联的NDC(嵌套诊断环境),尤其用到像java servlets这样的多客户多线程的应用中。
+>>
+>>%L：代码中的行数
+>>
+>>%n：**换行**
+
+1.引入之后在scala object 类和包中引用时看官网给的例子是extends base with logging ，后来才知道with是scala中多继承使用的关键字
+也就是说使用时直接在类名或者object 名后加上extends logging就可以了。
+2.然后在下面的方法中使用logger.debug("信息") 或者 error，warn等就可以了。
+
 
 ## 语法解析
 
@@ -558,3 +794,172 @@ def read: String = using(Source.fromFile(readme)) {
 `resource: => T`是按照`by-name`传递，在实参传递形参过程中，并未对实参进行立即求值，而将求值推延至`resource: => T`的调用点。
 
 对于本例，`using(Source.fromFile(source))`语句中，`Source.fromFile(source)`并没有马上发生调用并传递给形参，而将求值推延至`source = resource`语句。
+
+### 使用case class
+
+当一个类被声明为case class时，编译器会自动进行如下操作：
+
+1. 构造器中参数如果没有被声明为var，则默认为val类型
+2. 自动创建伴生对象，同事在伴生对象中实现apply()方法，这样在使用时就不用显示地使用new对象
+3. 伴生对象中同样可以实现unapply()，从而可以将case class应用于模式匹配
+4. 添加天然的hashCode、equals和toString方法
+5. 生成一个copy方法以支持实例a生成另一个实例b，实例b可以指定构造函数参数与a一致或不一致
+
+### "_" 默认赋值
+
+在java中，作为类的属性时，变量不需要立刻初始化，但是在scala中必须要立刻初始化。
+
+1. val变量定义的时候必须复制
+
+2. var的变量可以使用默认初始化，即用下划线（"_"）对变量赋值，但是使用的时候要注意：
+
+   2.1 默认初始化的变量类型要明确
+
+   ```scala
+   class Person {
+       var age = _	//error
+   }
+   
+   class Person {
+       var age: Int = _	//right
+   }
+   ```
+
+   2.2 对于不同的类型变量，虽然都用下划线，但是初始化的值不同
+
+   ```scala
+   class Person {
+       var age: Int = _	// 初始化为0
+       var name: String = _	// 初始化为null
+       var weight: Double = _	// 初始化为0.0，同Float
+       var score: Set[Int] = _	// 初始化为null
+   }
+   ```
+
+3. 可以使用代码块和三元符来做到位val类型的变量赋值
+
+### 字符串截取
+
+```scala
+val a = "aa-bc-xx"
+val i = a.indexOf("-")
+val x = a.indexOf("-",i)
+
+val one = a.substring(0,i)
+print(one)    //aa
+
+val two = a.substring(i+1,x)
+print(two) //bc
+
+val three = a.substring(x+1)
+print(three)   //xx
+```
+
+### String单引号和三引号
+
+例如下代码,如果要换行,必须在代码中添加换行符\n\r
+
+```scala
+val s1:String = "456 sldjf\n\r  slkfjl lskjfls "
+```
+
+如果换成三引号,可以在代码中直接回车
+
+```scala
+val s2:String = """456 sldjf
+            lkfjl lskjfls """
+```
+
+
+另外如果字符串中想保留原意(例如三引号中包裹引号),也可以用三引号
+
+```scala
+val s1:String = """select * from student where name = "tom""""
+```
+
+### break和continue实现
+
+```scala
+package com.padluo.spark.scala.basic
+
+import scala.util.control.Breaks._
+
+object BreakTest {
+  def main(args: Array[String]): Unit = {
+    // break
+    breakable {
+      for (i <- 1 to 10) {
+        if (i == 2) {
+          break()
+        }
+        println(i)
+      }
+    }
+
+    // continue
+    for (i <- 1 to 10) {
+      breakable {
+        if (i == 2) {
+          break()
+        }
+        println(i)
+      }
+    }
+
+  }
+}
+```
+
+`0 until 10`和`0 to 10`的区别，until是0到9，相当于<，to是0到10，相当于<=
+
+## 多线程
+
+### 并行编程
+
+​	scala中的actor能够实现并行编程的强大功能，他是基于事件模板的并发机制。scala是运用消息的发送、接收实现多线程的。使用scala能够更容易地实现多线程应用地开发。
+
+​	传统java并发变成与scala actor编程的区别
+
+| Java内置线程模型                                    | Scala Actor模型                      |
+| --------------------------------------------------- | ------------------------------------ |
+| “共享数据-锁”模型（share data and lock）            | share nothing                        |
+| 每个object有一个monitor，监视多线程对共享数据的访问 | 不共享数据，actor之间通过message通讯 |
+| 加锁的代码端用synchronized标识                      |                                      |
+| 死锁问题                                            |                                      |
+| 每个线程内部是顺序执行的                            | 每个actor内部是顺序执行的            |
+
+​	对于Java，我们都直达送它地多线程实现需要对共享资源（变量、对象等）使用synchronized关键字进行代码块同步、对象锁互斥等。而且，常常一大块try...catch语句块中加上wait方法、notify方法、notifyAll方法是让人很头疼地。原因就在于Java中多数使用的是可变状态地对象资源，对这些资源进行共享来实现多线程变成的话，控制好资源竞争与防止对象状态被意外修改是非常重要的，而对象状态地不可变性也是难以保证的。而在scala中，我们可以通过赋值不可变状态的资源（即对象，scala中一切都是对象，连函数、方法也是）的一个副本，再基于Actor的消息发送、接受机制进行并行编程。
+
+### 并发编程
+
+​	Scala中的并发编程思想与Java中的并发编程思想完全不一样，scala中的actor事一种不共享数据，依赖于消息传递的一种并发编程模式，避免了思索、资源争夺等情况。在具体实现的过程中，scala中的actor会不断的循环自己的邮箱，并通过receive偏函数进行消息的模式匹配并进行响应的处理。
+
+​	如果actor A和actor B要相互沟通的话，首先A要给B传递一个消息，B会有一个收件箱，然后B会不断的循环自己的收件箱，若看见A发过来的消息，B就会解析A的消息并执行，处理完之后就有可能将处理的结果通过邮件的方式发送给A。
+
+- Actor方法执行顺序
+
+调用start()方法启动Actor
+
+调用start()方法后其act()方法会被执行
+
+scala Actor向Actor发送消息
+
+- 发送消息的方式
+
+! 发送异步消息，没有返回值
+
+!? 发送同步消息，等待返回值
+
+!! 发送一部消息，返回值事Future[Any]
+
+- 同步交互与异步交互
+
+Java中交互方式分为同步消息处理和异步消息处理两种：
+
+同步交互：指发送一个请求，需要等待返回，然后才能够发送下一个请求，有一个等待过程；
+
+异步交互：指发送一个请求，不需要等待返回，随时可以再发送下一个请求，即不需要等待。
+
+### scala Actor和akka Actor
+
+​	Actor本身来说是一个原语模型，scala本身实现了actor，但是后来者akka认为scala自身模型并不完善，Akka中的actor是生产级别的，完善的解决方案。慢慢的，在后面的版本里面scala actor将被akka actor取代。
