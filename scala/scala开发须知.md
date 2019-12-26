@@ -1,3 +1,7 @@
+---
+typora-root-url: ..
+---
+
 # Scala开发须知
 
 [TOC]
@@ -17,7 +21,7 @@
 
 创建sbt工程：File-->New -->Project
 
-![new_project](./new_project.png)
+![new_project](/scala/img/new_project.png)
 
 新建工程后会，生成的目录结构如下：
 

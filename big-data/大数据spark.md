@@ -1,3 +1,7 @@
+---
+typora-root-url: ..
+---
+
 # 大数据Spark
 &nbsp;&nbsp;Spark目前已经成为主流的大数据分析平台，所以熟练掌握spark的使用成为了机器学习/大数据分析领域必备的技能。
 
@@ -7,7 +11,7 @@
 - 基于内存，数据可存在内存中，特别适用于需要迭代多次运算的场景
 - 与Hadoop继承，能够直接读写HDFS中的数据，并能运行再YARN之上
 
-![spark-frame](./spark-frame.png)
+![](/big-data/img/spark-frame.png)
 
 spark构成：
 - Application		运行在集群上的用户程序，包含集群上的driver program和多个executor线程组成
