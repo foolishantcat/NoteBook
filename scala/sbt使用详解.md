@@ -446,6 +446,43 @@ resolvers += Resolver.mavenLocal
 
 如果需要覆盖或者修改默认库地址，可以使用`externalResolvers`
 
+#### 排除插件
+
+当我们我们进行打包的时候，有时候会多个库之前重复依赖了某个文件，因为产生歧义，这时打包会失败。那么我们就需要排除一个库，或者文件。
+
+`excludeAll`和`exclude`方法用于排除
+
+- exclude
+
+```scala
+libraryDependencies += 
+  "log4j" % "log4j" % "1.2.15" exclude("javax.jms", "jms")
+```
+
+- excludeAll
+
+```scala
+libraryDependencies +=
+  "log4j" % "log4j" % "1.2.15" excludeAll(
+    ExclusionRule(organization = "com.sun.jdmk"),
+    ExclusionRule(organization = "com.sun.jmx"),
+    ExclusionRule(organization = "javax.jms")
+  )
+```
+
+`excludeAll`比`exclude`更加的灵活，但是因为前者不能使用在`pom.xml`中（Maven），所以，通常它只被用在pom.xml不需生成的场景。
+
+我们也可以将排除规则写成如下形式：
+
+```scala
+excludeDependencies ++= Seq(
+  // commons-logging is replaced by jcl-over-slf4j
+  ExclusionRule("commons-logging", "commons-logging")
+)
+```
+
+
+
 ## 插件（Plugin）
 
 接下来我们讲一下插件，插件的作用是添加一个sbt-site插件到编译系统。通俗来说`compile`/`project`/`target`都是插件产生的。这种属于sbt的默认插件（也叫Global plugins），默认加入这些插件。
