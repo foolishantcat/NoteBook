@@ -916,13 +916,127 @@ object BreakTest {
 
 `0 until 10`和`0 to 10`的区别，until是0到9，相当于<，to是0到10，相当于<=
 
-## 多线程
+### until和to自定义分批次
 
-### 并行编程
+```scala
+  def loopTest: Boolean = {
+    for (i <- 0 until 10 by 2) {	// 也可以用0.until(10, 2)代替
+      for (j <- i.until(Math.min(i + 2, 10))) {
+        ...
+      }
+      ...
+    }
+
+    true
+  }
+```
+
+
+
+## Actor简介
+
+### Actor是什么
+
+​	曾经看到知乎上有人提过actor就是cpu上的时间片，这种说法非常贴切。Actor之间通过消息进行通讯，一切都是异步的。可以说Actor就像现实生活中的一群人，他们各司其职，呼吸昂通过消息进行交流，一个actor收到另外一个actor发来的消息后会按照消息的内容去执行指定的任务，接着再将新任务传递下去或者将执行结果返回给消息发送方。Actor这种模型很好地解决了java并发带来的各种问题。
+
+### Actor和Java线程的区别
+
+​	Actor规避了传统多线程中锁的问题，在Actor中是没有共享变量的，一切都是无状态的，尽管我们可以**在actor中去调用一个新的线程**去进行一些异步操作，但是这并**不符合Actor本身的理念**，并且会破坏Actor的整体涉及。要记住一点，Actor是单线程运行的，**<font color=red>一个Actor（实例/对象）</font>**同时只能处理一条消息，我们可以通过增加Actor的数量来提高系统并行处理的能力。so，如何增加actor的数量？
+
+### Actor时如何执行的
+
+​	Akka中使用dispatcher对actor进行执行，当一个actor启动之后会将自身绑定到一个dispatcher上，我们可以在系统配置中定义自己的dispatcher。Dispatcher本身其实是一个线程池，默认的dispatcher是一个fork-join-executor，读者可以参考下表来了解不同的disatcher。
+
+| Dispatcher          | 适用场景                                                     |
+| ------------------- | ------------------------------------------------------------ |
+| 默认dispatcher      | 适合大多数场景，默认实现                                     |
+| PinnedDispatcher    | 适合高优先级actor，为actor使用独立的线程                     |
+| BalancingDispatcher | 使用该dispatcher的actor将共享一个邮箱，只适合相同类型actor使用，2.3版本之后被BalancingPool替代 |
+
+一个简单的dispatcher配置
+
+```json
+default-dispatcher {
+	executor = "fork-join-executor"	// 默认executor
+    fork-join-executor {
+    	parallelism-min = 8
+    	parallelism-factor = 2.0
+    	parallelism-max = 8	// 最大活跃线程数
+	}
+}
+```
+
+### 不要阻塞一个Actor
+
+​	Actor的一条重要准的就是尽量不要去阻塞一个Actor，因为Actor本身为单线程处理消息，一旦被阻塞会导致消息积压、dispatcher资源被大量占据等问题，在笔者目前的项目中我们一般使用future去对IO阻塞类的操作进行处理。另外还有一条思路就是为存在阻塞的操作简历多个独立的actor，并将这些actor绑定到一个独立的dispather，将阻塞actor与常规actor进行隔离，避免影响到其他actor的执行。
+
+通过配置独立dispatcher来隔离Actor
+
+```json
+// 首先在配置文件中定义一个新的dispatcher
+crawler-dispatcher {
+    type=Dispather
+    executor = "thread-pool-executor"
+    thread-pool-executor {
+    	core-pool-size-min = 4
+    	core-pool-size-max = 64
+	}
+	throughput=5
+}
+```
+
+```scala
+// 调用一个withDispathcer方法绑定actor到指定dispathcer
+val actor = context.actorOf(Props.[MyActor].withDispatcher("crawler-dispatcher"))
+```
+
+### 慎用Actor的ask方法
+
+| 方法 | 区别                                 | 执行方式               |
+| ---- | ------------------------------------ | ---------------------- |
+| tell | fire and forget，发送后立刻返回      | 直接发送               |
+| ask  | 发送后等待一段时间，并返回一个future | 创建一个中间代理再发送 |
+
+​	上表展示了tell和ask的区别，通过阅读akka的源码可以发现，在使用ask的时候actor会生成一个临时的代理Actor再去发送消息，如果滥用ask会对系统的性能造成很大的影响，需要注意。
+
+```scala
+// akka中调用ask创建的临时actorRef
+val a = PromiseActorRef(ref.provider, timeout, targetName = actorRef, message.getClass, sender)
+actorRef.tell(message, a)
+a.result.future
+```
+
+### thoughtpput的一点思考
+
+​	在上面我们讲到了一些dispatcher的区别和使用方法，其中还有一个参数叫做thoughtput，在akka官方文档中是这么描述的，
+
+```text
+# Throughtput defines the maximum number of mesages to be
+# prcessed per actor before thread jumps to the next actor
+# Set to 1 for as fair as possible.
+```
+
+​	阅读可知，这个参数可以让我们对actor在获取线程之后进行处理的消息数量进行设置，设置为1则为公平的模式，如果设置的很大，则当前actor可以一直占据该线程知道消费完指定数目的消息后才会让出线程。如果我们的cpu上下文切换过多可以考虑将该值设置得大一点，如果消息数量本身很少，设置过大的值会造成actor一直占据着线程空等消息，这会影响其他actor的执行，具体的设置还需要大家自行摸索。
+
+```json
+default-dispatcher {
+    executor="fork-join-executor"
+    fork-join-executor {
+    	parallelism-min=8
+    	parallelism-factor=2.0
+    	parallelism-max=8
+	}
+	thoughtput=5	// 可以设置actor让出线程前处理消息的数目，可以进行设置降低cpu上下文切换次数
+}
+```
+
+
+
+### 并行编程对比
 
 ​	scala中的actor能够实现并行编程的强大功能，他是基于事件模板的并发机制。scala是运用消息的发送、接收实现多线程的。使用scala能够更容易地实现多线程应用地开发。
 
-​	传统java并发变成与scala actor编程的区别
+​	传统java并发编程与scala actor编程的区别
 
 | Java内置线程模型                                    | Scala Actor模型                      |
 | --------------------------------------------------- | ------------------------------------ |
@@ -934,7 +1048,7 @@ object BreakTest {
 
 ​	对于Java，我们都直达送它地多线程实现需要对共享资源（变量、对象等）使用synchronized关键字进行代码块同步、对象锁互斥等。而且，常常一大块try...catch语句块中加上wait方法、notify方法、notifyAll方法是让人很头疼地。原因就在于Java中多数使用的是可变状态地对象资源，对这些资源进行共享来实现多线程变成的话，控制好资源竞争与防止对象状态被意外修改是非常重要的，而对象状态地不可变性也是难以保证的。而在scala中，我们可以通过赋值不可变状态的资源（即对象，scala中一切都是对象，连函数、方法也是）的一个副本，再基于Actor的消息发送、接受机制进行并行编程。
 
-### 并发编程
+### 并发编程对比
 
 ​	Scala中的并发编程思想与Java中的并发编程思想完全不一样，scala中的actor事一种不共享数据，依赖于消息传递的一种并发编程模式，避免了思索、资源争夺等情况。在具体实现的过程中，scala中的actor会不断的循环自己的邮箱，并通过receive偏函数进行消息的模式匹配并进行响应的处理。
 
@@ -967,3 +1081,57 @@ Java中交互方式分为同步消息处理和异步消息处理两种：
 ### scala Actor和akka Actor
 
 ​	Actor本身来说是一个原语模型，scala本身实现了actor，但是后来者akka认为scala自身模型并不完善，Akka中的actor是生产级别的，完善的解决方案。慢慢的，在后面的版本里面scala actor将被akka actor取代。
+
+## 编译和打包
+
+### 编译
+
+
+
+### 打包
+
+#### scope
+
+- scope=compile
+
+对于scope=compile的情况（默认scope），也就是说这个项目在编译，测试，运行阶段都需要这个jar包在classpath中。
+
+- scope=provided
+
+scope=provided的情况，则可以认为这个provided是目标容器已经provided这个jar。所以无需我们打包对应的jar包了。
+
+- scope=import
+
+解决maven继承（单）问题
+
+Maven的继承和Java的继承一样，是无法实现多重继承的，一个子模块只能有一个<parent>标签。如果这个父模块有十几个子模块，那这个父模块的dependencyManagement会包含大量的依赖，不利于管理。
+
+scope依赖能解决这个问题。在dependencyManagement中通过scope依赖，就可以引入多个type=pom的dependency。
+
+#### scope其他参数：
+
+- runtime
+
+表示dependency不作用在编译时，但会作用在运行和测试时，如JDBC驱动，适用运行和测试阶段。
+
+- test
+
+表示dependency作用在测试时，不作用在运行时。只在测试时使用，用于编译和运行测试代码。不会随项目发布。
+
+- system
+
+跟provided相似，但是在系统中要以外部jar包的形式提供，maven不会在repository查找它。
+
+#### 打包工具
+
+- assembly
+
+会讲所有相关的jar包合成一个jar包，且冲突的jar包会尝试合并，并报错，合并策略可以在build.sbt文件中指定。
+
+- xitrumPackage
+
+会把依赖按照单独jar包的形式拷贝一份
+
+个人建议，最好使用xitrumPackage进行打包，这种类似C++.so的打包方式更为符合编程思想
+
+具体使用方式，去掉assembly中使用assemblyMergeStrategy in assembly的方式，添加xitrumPackage.copy()对jar包进行拷贝
