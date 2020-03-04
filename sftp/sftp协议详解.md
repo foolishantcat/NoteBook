@@ -113,7 +113,13 @@ ChrootDirectory /var/testsftp/  # 指定sftp根目录
 目录开始一直往上到系统根目录为止的目录拥有者都只能是 root，用户组可以不是 root。
 ```
 
+----------
 
+参考文档：
+
+> http://man.openbsd.org/sftp （sftp命令参数解析）
+>
+> http://man.openbsd.org/sshd_config.5 （sshd_config配置文件解析）
 
 
 
