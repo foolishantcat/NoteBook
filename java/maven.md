@@ -1,4 +1,4 @@
-# Maven
+#### Maven
 
 ## settings.xml
 
@@ -12,9 +12,21 @@ maven设置，包含global和user两个级别的设置。
 
 IntelliJ idea指定：`Preferences->Build,Execution,Deployment->Build Tools->Maven->User settings file`
 
-## Plugins
+## pom.xml
 
-### compiler
+### groupId
+
+groupId是项目组织唯一的标识符，实际对应JAVA的包的结构，是main目录里java的目录结构。groupId一般分为多个段，这里只说两段，第一段为域，第二段为公司名称。域分为org、com、cn等等许多，其中org为非营利性组织，com为商业组织，举个apache公司的tomcat项目例子：这个项目的groupId是org.apache，它的域是org（因为tomcat是非盈利项目），公司名称是apache。
+
+### artifactId
+
+项目的唯一标识符，实际对应项目的名称，就是项目根目录的名称。以tomcat为例，artifactId是tomcat。
+
+groupId和artifactId被统称为“坐标”是为了保证项目唯一性而提出的，如果你要把你的项目弄到maven仓库去，你想要找到你的项目就必须根据这两个id去查找。
+
+### Plugins
+
+#### compiler
 
 用于指定编译器，比较常见的设置如下：
 
@@ -44,7 +56,7 @@ IntelliJ idea指定：`Preferences->Build,Execution,Deployment->Build Tools->Mav
 
 如果你需要使用java8特性，那么你需要制定source为1.8。同样的，如果你需要编译出来的class文件适配JVM1.8，那么target你也需要指定为1.8。默认情况下，source和target都为1.6。
 
-### Jar
+#### Jar
 
 该插件支持maven打包一个jar包，比较常见的设置如下；
 
@@ -126,7 +138,7 @@ META-INF/maven/${groupId}/${artifactId}/pom.properties
 
 `mainClass`设置`Main-Class`为主函数入口
 
-### assembly
+#### assembly
 
 `assembly`插件主要用于允许用户搜集项目输出，类似依赖jar包，模块，文档，并输出到一个部署归档文件。
 
@@ -362,7 +374,7 @@ war
 
 `includes/include*`设置一些文件类型被打包进归档文件，假如不设置，默认为所有文件
 
-### dependencies
+#### dependencies
 
 用于编译环节处理依赖包，具体形似如下：
 

@@ -115,6 +115,12 @@ ChrootDirectory /var/testsftp/  # 指定sftp根目录
 
 ----------
 
+通常来说，我们服务器会开放特定端口到外部，但通常都不包括sftp的端口，所以，我们需要使用一种比较折衷的办法来解决这个问题。即不暴露ssh服务端口，也要将数据通过sftp回传。
+
+使用nginx反向代理sftp端口服务。
+
+-------------
+
 参考文档：
 
 > http://man.openbsd.org/sftp （sftp命令参数解析）
