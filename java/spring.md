@@ -185,7 +185,7 @@ public class MySubClass extends MySuperClass { ... }
 public @interface Aysnc
 ```
 
-用于标记一个方法可以异步执行，也可以呗用于类型级别，被这个类型锁标记的方法可以异步执行。注意，`@Async`不可以在已经被声明了`@Configuration`的类里面被使用。例如：
+用于标记一个方法可以异步执行，也可以被用于类型级别，被这个类型锁标记的方法可以异步执行。注意，`@Async`不可以在已经被声明了`@Configuration`的类里面被使用。例如：
 
 ```java
 @Configuration
@@ -375,7 +375,7 @@ public static void main(String[] args) {
 public @interface RestControllerAdvice
 ```
 
-被声明了该装饰器的类型，作为一个`@ExceptionHandler`的控制器，用于处理`Controller`所产生的一场消息。
+被声明了该装饰器的类型，作为一个`@ExceptionHandler`的控制器，用于处理`Controller`所产生的异常消息。
 
 ```java
 @RestControllerAdvice
@@ -392,11 +392,11 @@ public class ApplicationExceptionHandler {
 
 可以看到异常处理完成之后，返回的类型依然是`Response`，跟正常返回类型保持一致，接口调用者可以正常接收到异常消息。
 
-## SpringBootApplication
+## @SpringBootApplication
 
 `org.springframework.boot.autoconfigure`
 
-SpringBoot目前是和SpringFrameWork独立的包。所以需要独立饮用。
+SpringBoot目前是和SpringFrameWork独立的包。所以需要独立引用。
 
 定义：
 
@@ -447,7 +447,99 @@ public @interface Bean
 
 简单来说，有了它之后，不用再使用xml文件进行类注入了。而是向容器中添加`Bean`所修饰的指定类即可。
 
-## corsConfigurer
+## @Autowired
+
+### @Autowired和@Resource
+
+1. @Autowired和@Resource都可以用来装配Bean，都可以写在字段、setter上
+2. @Autowired默认按类型装配（属于spring提供的），默认情况下必须要求依赖对象必须存在，如果要允许null值，可以设置它的required属性为false
+3. @Resource是JDK1.6支持的注解，默认按照名称进行装配，名称通过name属性进行指定，如果没有指定name属性，当注解写在字段上时，默认取字段名，按照名称查找，如果注解写在setter方法上默认取属性名进行装配。
+
+### @Autowired和@Service
+
+传统的Spring做法是使用`.xml`文件来对bean进行注解或者是配置aop、事务，这么做有两个缺点：
+
+1. xml文件越来越多，越来越大
+2. 在java和xml之间不断来回切换，编码连贯性降低
+
+为了解决这两个问题，spring引入注解，通过“@XXX”的方式，让注解与Java Bean紧密结合，既大大减少了配置文件的体积，又增加了Java Bean的可读性与内聚性。
+
+@Autowired注解的意思就是，当Spring发现@Autowired注解时，将自动在代码上下文中找到和其匹配（默认是类型匹配）的Bean，并自动注入到相应的地方去。
+
+@Autowired不仅可以修饰需要注入的属性对象，还可以修饰注入`接口`（interface）
+
+**@Service的主要作用：**
+
+1. 声明**.java是一个bean（如果修饰类），其他类可以直接使用@Autowired将类当做一个成员变量自动注入
+
+```java
+@Service
+@Scope("prototype")
+public class Zoo {
+  @Autowired
+  private Monkey monkey;
+  @Autowired
+  private Tiger tiger;
+  
+  public String toString() {
+    return "MonkeyName:" + monkey + "\nTigerName:" + tiger;
+  }
+};
+```
+
+2. `@Scope`注解，因为Spring默认生产出来的bean是单例的，假如我不想单例使用怎么办，xml文件里面可以在bean里面配置scope属性。注解也是一样，配置@Scope即可，默认是“singleton”即单例，“prototype”表示原型即每次都会new一个新的出来。
+
+## @Required
+
+@Required注释为为了保证所对应的属性必须被设置，**@Required** 注释应用于 bean 属性的 setter 方法，它表明受影响的 bean 属性在配置时必须放在 XML 配置文件中，否则容器就会抛出一个 BeanInitializationException 异常。下面显示的是一个使用 @Required 注释的示例。*直接的理解就是，如果你在某个java类的某个set方法上使用了该注释，那么该set方法对应的属性在xml配置文件中必须被设置，否则就会报错！！！*
+
+## @Entity
+
+Hibernate框架（Spring ORM框架）的注解，必须与`@Id`注解结合使用
+
+### @Table
+
+声明此对象映射到数据库的表，通过它可以为实体指定表（table），目录（catalog）和schema的名字。该注释不是必须的，如果没有则系统使用默认值（实体的短类名）
+
+### @Version
+
+该注释可用于在实体Bean中添加乐观锁支持
+
+### @Id
+
+声明此属性为主键。该属性值可以通过应该自身创建，但是Hibernate推荐通过Hibernate生成
+
+### @GeneratedValue
+
+指定主键的生成策略。有如下四个值：
+
+- TABLE：使用表保存id值，通过表产生主键
+- IDENTIRY：identity column采用数据库ID自增长的方式来自增主键字段
+- SEQUENCR：sequence序列产生主键
+- AUTO：根据数据库的不同使用上面三个
+
+### @Column
+
+声明该属性与数据库字段的映射关系，例如：
+
+```java
+@Column(name="category_name" length=20)
+public void getCategoryName() {
+  return this.categoryName;
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+## corsConfigurer（跨域访问）
 
 SpringBoot添加支持CORS（Cross-Origin Resource Sharing）跨域访问。它允许浏览器向跨域服务器发送Ajax请求，发破了Ajax只能访问本站内的资源限制，CORS在很多地方都有被使用，微信支付的JS支付就是通过JS向微信服务器发送跨域请求。开放Ajax访问可被跨域访问的服务器大大减少了后台开发的工作，前后台工作也可以得到很好的明确以及分工。下面是SpringBoot添加cors支持的代码：
 
@@ -470,3 +562,39 @@ public WebMvcConfigurer corsConfigurer() {
 - allowedMethods：允许所有的请求方法访问该跨域资源服务器，如：**POST、GET、PUT、DELETE等**。
 - allowedOrigins：允许所有的请求域名访问我们的跨域资源，可以固定单条或者多条内容，如：“http://www.baidu.com”，只有百度可以访问我们的跨域资源。
 - allowedHeaders：允许所有的请求header访问，可以自定义设置任意请求头信息，如：“X-YAUTH-TOKEN”
+
+
+
+# Java日常使用
+
+## Runnable
+
+`java.lang`
+
+`@FunctionalInterface`
+
+`public interface Runnable`
+
+继承了`Runnable`接口的类，必须含有一个无参`run`函数，该类的实例对象会按照一个线程单独被执行。
+
+## ExecutorService
+
+`java.util.concurrent`
+
+`public interface ExecutorService extends Executor`
+
+`Executor`提供一个方法管理界面，并且观察一个用于追踪异步任务的`Future`对象。
+
+`ExecutorService`当注入了一个新的任务之后，可以被`shut down`。
+
+有两种关闭的方法：
+
+1. `shutdown()`方法允许在提交的任务运行结束之前提前执行，但是不影响提交任务的执行。
+2. `shutdownNow`将会禁止等待执行的任务开始，并尝试终止正在执行的任务。
+
+任务执行方法：
+
+1. 执行`Executor.execute(Runnable)`并返回一个`Future`用于任务取消、等待执行完毕。
+
+
+

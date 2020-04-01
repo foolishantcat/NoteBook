@@ -329,5 +329,13 @@ checkdir error:  cannot create work/????+-+?
 $ ditto -V -x -k --sequesterRsrc 办公文件.zip work
 ```
 
+## Vim使用
+
+将vim中的内容全文拷贝到外部：
+
+```shell
+:%w !pbcopy
+```
+
 
 

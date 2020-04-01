@@ -32,6 +32,8 @@ SSH主要由三部分组成：传输层协议（ssh-trans）；用户认证协�
 
 --------
 
+# 配置sftp
+
 以上我们基本上把sftp周边的协议讲清楚了，那么接下来我们需要开始配置和使用sftp了。
 
 首先我们需要添加一个专用于sftp的用户组：
@@ -44,6 +46,9 @@ groupadd sftp
 
 ```shell
 useradd -g sftp -s /bin/bash testsftp
+# 如果使用/sbin/nologin则创建的用户无法使用ssh登陆，也无法命令行切换用户的方式切换过去
+# 不指定用户组，默认用户组就是用户名本身
+useradd -d /home/testsftp -s /sbin/nologin testsftp
 ```
 
 设置账号密码：
@@ -120,6 +125,36 @@ ChrootDirectory /var/testsftp/  # 指定sftp根目录
 使用nginx反向代理sftp端口服务。
 
 -------------
+
+# know_hosts文件
+
+我们在配置proftp的过程中，遇到个别机器无法登陆sftp的问题，报错如下：
+
+```shell
+~ » sftp -oPort=8080 ethanmac@192.168.1.213                                                                          255 ↵ ethancao@EthanCaodeMacBook-Pro
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the RSA key sent by the remote host is
+SHA256:m3waO1sRGg7hLppTb+pLqIW/dwHR47MhMTaCWxsMuwE.
+Please contact your system administrator.
+Add correct host key in /Users/ethancao/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /Users/ethancao/.ssh/known_hosts:4
+RSA host key for [192.168.1.213]:8080 has changed and you have requested strict checking.
+Host key verification failed.
+Connection closed
+```
+
+这个错误主要是因为`know_hosts`文件记录了上一次访问该IP时所使用的公钥与本次所访问该IP的公钥不相同，所以就报错。
+
+解决方案：
+
+> 手动删除`know_hosts`文件里面对应IP所在的行即可
+>
+> 或者可以使用命令：ssh-keygen -R 192.168.1.213
 
 参考文档：
 

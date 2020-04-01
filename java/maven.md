@@ -1,4 +1,4 @@
-#### Maven
+# Maven
 
 ## settings.xml
 
@@ -11,6 +11,23 @@ maven设置，包含global和user两个级别的设置。
 两者如果都设置了，将会合并两个xml文件的配置，重复的部分user会覆盖global设置
 
 IntelliJ idea指定：`Preferences->Build,Execution,Deployment->Build Tools->Maven->User settings file`
+
+国内镜像设置（国外下载地址很慢）：
+
+**打开${maven.home}/conf/settings.xml**，编辑
+
+```shell
+146   <mirrors>
+147     <mirror>
+148       <id>nexus-aliyun</id>
+149       <mirrorOf>*</mirrorOf>
+150       <name>Nexus aliyun</name>
+151       <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+152     </mirror>
+153   </mirrors>
+```
+
+配置包下载地址到阿里云
 
 ## pom.xml
 
@@ -171,6 +188,7 @@ war
           <descriptorRefs>
             <descriptorRef>jar-with-dependencies</descriptorRef>
           </descriptorRefs>
+          
         </configuration>
         <executions>
           <execution>
@@ -420,6 +438,11 @@ $ mvn clean
 $ mvn compile
 # 打包
 $ mvn package
+```
+
+```shell
+# 跳过测试用例进行打包（当测试用例存在一些特殊环境相关代码时可用这个办法跳过单测）
+$ mvn package -Dmaven.test.skip=true 
 ```
 
 

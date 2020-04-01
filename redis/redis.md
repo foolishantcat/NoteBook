@@ -71,3 +71,31 @@ HSET x123 name "ethancao"	// 该案例key为简短英文加数字，redis也会�
 
 同理，再给密码加密时，通常不直接使用md5直接对密码加密，而是通过生成uuid构造一个盐值（前缀或者后缀拼接潜入到密码中），然后再对字符串md5加密
 
+## 安全漏洞处理
+
+### 弱密码
+
+`redis.conf`文件，修改`requirepass {复杂密码}`
+
+### 禁止所有主机可访问
+
+1. `redis.conf`文件，设置`bind 127.0.0.1`只允许当前主机访问
+2. 配合iptables对源IP进行防火墙限制，只允许白名单里面的IP访问redis端口
+
+```shell
+// accept
+## iptables -A INPUT -p tcp -s 127.0.0.1 --dport 2020 -j ACCEPT
+## iptables -A INPUT -p udp -s 127.0.0.1 --dport 2020 -j ACCEPT
+
+
+// drop
+## iptables -I INPUT -p tcp --dport 2020 -j DROP
+## iptables -I INPUT -p udp --dport 2020 -j DROP
+
+// 保存规则并重启 iptables
+## service iptables save
+## service iptables restart
+```
+
+
+
