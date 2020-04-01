@@ -1873,66 +1873,6 @@ using func = void (*) (int, int);
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 面试应对法则
-
-1. 整理一个项目中遇到的哪些棘手的问题，这些问题带来了什么问题，当时想了哪些解决方案，最终为何选择了这个方案，这个方案的结果是什么，后续应该如何在系统设计时提前考虑这些问题。
-2. 当面试官问你有什么想法的问题时，要注意不要问薪酬相关的信息。主要问团队情况，过来做什么事情，可能会遇到的挑战
-3. 开放性问题注意的点，开放性问题没有标准答案。核心就是不要把话说太死，以自己的了解说个大概即可。多方面考虑开放性问题。
-4. 面试注意不要过于表现自己，根据面试官的问题，回答核心问题即可，有时隐藏部分实力，也是极好的
-5. 面试注意，当一个问题，你觉得没有准备好的时候，可以重复面试官的问题，放慢语速。然后在这段时间去思考这个问题。
-6. 回答问题要有条理性，逻辑性。要回答一个问题时，先在脑袋里想一想，然后再组织一下，最后再说出来。这样会更有结构化的东西出来。
-7. 为什么要换工作：当前业务发生了一些变动，跟我的职业规划不符，也缺乏积累。另外自己想长期的积累一点行业经验，有利于前途，经常变换业务内容缺乏行业积累。
-8. 为什么选择这份工作：很羡慕这份工作，成就感。
-9. 最想问的问题：入职之后即将遇到的挑战，工作中比较难的部分
-
-# 项目解说部分
-
-## DSP
-
-DSP后台启动之后：
-
-1. actor/Actors.scala使用schedule定时1毫秒不断扫描所有IoActor
-2. BlockingFilterIoActor.scala收到由Io定时器发来的通知，并从BlockingFilterUtils中拿出事先由FilteringActor存入ConcurrentLinkedQueue队列的请求（此处，头条没有走这条线，头条是直接由targetingActor进行处理）
-
-当一个请求进来后，首先：
-
-1. 进入FilteringActor，然后反作弊处理、其他简单判断
-2. 丢入BlockingFilterUtils所声明的队列
-3. BlockingFilterUtils使用takeFromQueue获取需要处理的队列，然后首先查询用户画像，补齐请求标签信息
-4. 发送请求到filteringHandleActor，分不同平台在FilteringHandler进行处理，一次性发送50个请求，串行处理。
-5. 解析请求，生成feature，创意过滤
-6. 发送给targetingActor处理
-7. NonBlockingTargetUtils.isRightTarget定向，主要是根据lineitem，比对传入feature（请求与用户画像信息），决定是否投放
-8. 然后使用BlockingTargetUtils.miBidRequestMessages.add添加消息大宋BlockingTargetUtils
-9. BlockingTargetIoActor使用takeFromQueue从BlockingTargetUtils一次性拿出50条消息串行处理
-10. 头条读取redis用户画像，getInfoFromRedis获取用户信息（人群包、历史浏览），讲redis查询到的信息暂存
-11. 传入TargetingHandleActor处理，调用TargetingHandler处理具体业务，用key过滤，BlockingTargetUtils.isRightTarget做定向过滤
-12. 调用AntiCheat反作弊检查。函数内传递消息给rankingActor，继而传入BlockingRankUtils.recordRequests队列等待处理
-13. BlockingRankIoActor取出消息，使用getSeatBid获取竞价价格，生成返回内容并用sender()返回消息给请求方
-14. 记录竞价请求的requestId对应的消息到redis
-
-
-
-
-
 # 头条要点
 
 1. C++依赖注入（IOC），spring也有类似机制，C++观察者模式
