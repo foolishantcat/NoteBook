@@ -1,3 +1,7 @@
+
+
+
+
 # Java Spring日常使用详解
 
 以下主要是基于springframework的使用心得
@@ -200,6 +204,8 @@ public class Test{
 被修饰的方法返回值只可能是`void`或`Feture`类型。一般来说说，会声明`ListenableFuture`或`CompletableFuture`类型，这两种类型具有更为丰富的异步任务交互体验。
 
 当返回一个`Feture`句柄时，能够被用于追踪异步方法执行的结果。
+
+如果在Spring里面使用Aysnc装饰器，需要在启动类加上`@EnableAsync`注释。
 
 ## @RestController
 
@@ -529,11 +535,44 @@ public void getCategoryName() {
 }
 ```
 
+## @PostConstruct
+
+使用@PostConstruct，在方法上添加@PostConstruct注解，一定要放在能被扫描到的地方（例如：`@Service`或者`@Component`注解修饰的类），如果你写在一个无法被扫描到的位置是不能执行的。
+
+这个注解的主要作用是，在依赖被注入到`容器`之内后，会第一时间调用被PostConstruct修饰的函数，当然，这个函数，必须是`public`的，难道是外部需要通过instance实例对象来调这个函数？
+
+## @Sheduled
+
+这个函数用来，设定异步执行某个定时器任务。该注解通常需要spring在启动类添加修饰：`@EnableScheduling`。
+
+需要注意的是，该注解启动的定时任务是单线程的，所以，可能会发生线程阻塞。如果需要避免线程阻塞，要配合**`implements SchedulingConfigurer`**使用。
+
+```java
+@Configuration
+@Enable
+class ScheduleConfig implements ShedulingConfigurer {
+  @Override
+  public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
+    taskRegistrar.setScheduler(Executors.newScheduledThreadPool(5));
+  }
+}
+```
+
+以上代码，放在`@Shcheduled`修饰方法的同级类，可以启动多线程处理定时器任务。
 
 
 
+## synchronized
 
+Java中的synchronized关键字可以在多线程环境下用来作为线程安全的同步锁。本文主要对synchronized的作用，以及其有效范围进行讨论。
 
+Java中的对象锁和类锁：java的对象所和类锁在锁的概念上基本上和内置锁是一致的，但是两个锁实际是有很大的区别的，对象锁是用于对象实例方法，或者一个对象实例上的，类锁是用于类的静态方法或者一个类的class对象上的。我们知道，类的对象实例可以有很多个，但是每个类只有一个class对象，所以不同对象实例的对象锁是互不干扰的，但是每个类只有一个类锁。但是有一点必须注意的是，其实类锁只是一个概念上的东西，并不是真实存在的。它这只是用来帮助我们理解锁定实例方法和静态方法的区别的。
+
+synchronized关键字主要有一下几种用法：
+
+- 非静态方法的同步
+- 静态方法的同步
+- 代码块
 
 
 
@@ -596,5 +635,49 @@ public WebMvcConfigurer corsConfigurer() {
 
 1. 执行`Executor.execute(Runnable)`并返回一个`Future`用于任务取消、等待执行完毕。
 
+## java static import
 
+java静态引用。主要目的：将原本需要使用import导入的类所包含的静态方法的使用方式`ClassName.method()`改成不需要使用类名访问`method()`。
+
+这样做，并没有什么太大的好处，并且不同类存在同名静态函数，会产生编译错误。
+
+所以官方建议，除非特别说明，不建议这么使用。
+
+## stampedLock
+
+邮戳锁。
+
+- 特点：
+
+获取锁的方法，都返回一个邮戳（stamp），stamp为0表示获取失败，其余都表示成功。
+
+释放锁的方法，都需要一个邮戳（stamp），这个stamp必须与获取锁的stamp一致。
+
+stampedlock是不可重入的；如果一个线程已经持有了写锁，再去获取写锁的话就会造成死锁。
+
+支持锁升级跟锁降级
+
+使用有限次自旋，增加锁获得的几率，避免上下文切换带来的开销
+
+乐观读不阻塞写操作，悲观读，阻塞写的操作
+
+- 优点
+
+相比于reentrantReadWriteLock，吞吐量大幅提升
+
+- 缺点
+
+api相对复杂，容易用错
+
+内部实现相比于reetrantReadWriteLock复杂得多
+
+- 原理
+
+每次获取锁的时候，都会返回一个邮戳，相当于mysql里的version字段。
+
+释放锁的时候，再根据之前的获得的邮戳，去进行锁释放
+
+- 注意点
+
+如果使用乐观读，一定要判断返回的邮戳是否是一开始获得到的，如果不是，要去获取悲观读锁。
 

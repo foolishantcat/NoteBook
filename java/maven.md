@@ -27,7 +27,52 @@ IntelliJ idea指定：`Preferences->Build,Execution,Deployment->Build Tools->Mav
 153   </mirrors>
 ```
 
-配置包下载地址到阿里云
+配置包下载地址到阿里云，接下来我们来看一下各个选项是什么意思：
+
+- mirrorOf
+
+**默认为`central`**
+
+`<mirrorOf>*</mirrorOf>`表示为所有仓库做镜像
+
+`<mirrorOf>external:*</mirrorOf>`匹配所有远程仓库，使用localhost的除外，使用file://协议的除外。也就是说匹配所有不再本机上的远程仓库。
+
+`<mirrorOf>repo1,repo2</mirrorOf>`匹配repo1和repo2，使用逗号分隔多个远程仓库。
+
+`<mirrorOf>*,!repo1</mirrorOf>`匹配所有远程仓库，repo1除外，使用感叹号将仓库从匹配中排除。
+
+需要注意的是，由于镜像仓库完全屏蔽了被镜像仓库，当镜像仓库不稳定或者停止服务的时候，Maven仍将无法访问被镜像仓库，因而将无法下载构件。
+
+- id
+
+必须是一个非冲突值，如果冲突将会覆盖旧的值
+
+- name
+
+镜像的描述信息
+
+- url
+
+被镜像的地址，必须要是根地址
+
+还可以从`pom.xml`配置远程库地址，这样更加灵活：
+
+```xml
+<repositories>
+        <!-- 远程仓库地址配置 -->
+        <repository>
+            <id>maven_nexus_201</id>
+            <name>maven_nexus_201</name>
+            <layout>default</layout>
+         <url>http://localhost/content/groups/public/</url>
+            <snapshots>  
+                <enabled>true</enabled>  
+              </snapshots>
+        </repository>
+</repositories>
+```
+
+**当我们不知道具体库是否在源地址存在，可以通过访问根目录的方式，进入根节点搜索界面。以确定库的地址。**
 
 ## pom.xml
 
@@ -445,7 +490,11 @@ $ mvn package
 $ mvn package -Dmaven.test.skip=true 
 ```
 
+## 编译遇到的一些问题
 
+在编译过程中，遇到了：Not a readable JAR atrifact：... error opening zip file问题
+
+这个问题，遇到了，可以尝试清除一下缓存jar包，最直接的做法就是删掉`~/.m2/repository`下所有文件，重新执行`mvn compile`会重新拉取。
 
 
 
