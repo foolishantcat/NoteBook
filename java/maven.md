@@ -33,15 +33,25 @@ IntelliJ idea指定：`Preferences->Build,Execution,Deployment->Build Tools->Mav
 
 **默认为`central`**
 
-`<mirrorOf>*</mirrorOf>`表示为所有仓库做镜像
+`<mirrorOf>*</mirrorOf>`表示为所有仓库做镜像。
 
 `<mirrorOf>external:*</mirrorOf>`匹配所有远程仓库，使用localhost的除外，使用file://协议的除外。也就是说匹配所有不再本机上的远程仓库。
 
-`<mirrorOf>repo1,repo2</mirrorOf>`匹配repo1和repo2，使用逗号分隔多个远程仓库。
+`<mirrorOf>repo1,repo2</mirrorOf>`匹配repo1和repo2，使用逗号分隔多个远程仓库。实际作用会导致，原本查找repo1和repo2的链接地址被重定向到配置地址。
 
 `<mirrorOf>*,!repo1</mirrorOf>`匹配所有远程仓库，repo1除外，使用感叹号将仓库从匹配中排除。
 
 需要注意的是，由于镜像仓库完全屏蔽了被镜像仓库，当镜像仓库不稳定或者停止服务的时候，Maven仍将无法访问被镜像仓库，因而将无法下载构件。
+
+我本以为镜像库是一个分库的概念，就是说`a.jar`在第一个mirror中不存在的时候，maven会去第二个mirror中查询下载。但事实却不是这样，当第一个mirror不存在`a.jar`的时候，并不会去第二个mirror中查找，甚至于，maven根本不会去其他mirror地址查询。
+
+后来终于知道，maven的mirror是镜像，而不是“分库”，只有当前一个mirror无法连接的时候，才会去找后一个，类似于备份和容灾。
+
+还有，mirror也不是按settings.xml中写的那样的顺序来查询的。
+
+所谓的第一个并不一定是最上面的那个。
+
+当有id为B、A、C的顺序的mirror在mirrors节点中，maven会根据字母排序来指定第一个，所以不管怎么排列，一定会找到A这个mirror来进行查找，当A无法连接，出现意外的情况下，才会去B查询。
 
 - id
 
@@ -494,7 +504,28 @@ $ mvn package -Dmaven.test.skip=true
 
 在编译过程中，遇到了：Not a readable JAR atrifact：... error opening zip file问题
 
+- 方法一
+
 这个问题，遇到了，可以尝试清除一下缓存jar包，最直接的做法就是删掉`~/.m2/repository`下所有文件，重新执行`mvn compile`会重新拉取。
+
+- 方法二
+
+使用如下命令重新编译一次：
+
+```shell
+mvn compile -U -X
+mvn compile
+```
+
+这个时候就会发现，一般会发现，哈哈，问题：
+
+```shell
+missing 了某个包的 version 字段
+```
+
+当然，如果还没解决，也许是不应该在pom.xml里面胡乱配置repositories造成的，删除掉，再试试。
+
+
 
 
 

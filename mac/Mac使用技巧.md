@@ -329,6 +329,18 @@ checkdir error:  cannot create work/????+-+?
 $ ditto -V -x -k --sequesterRsrc 办公文件.zip work
 ```
 
+### find & xargs
+
+用于查找文件，并批量操作，和Linux命令行下面，略有区别
+
+```shell
+find ./target/generated-sources/ -name "*.java" | xargs  -n1 -I F cp "F" ./src/main/java/com/grpc/mistra/generate/ 
+```
+
+你品，你细品，这个命令真奇怪，好累赘的感觉，哈哈。
+
+
+
 ## Vim使用
 
 将vim中的内容全文拷贝到外部：
