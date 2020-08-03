@@ -339,6 +339,15 @@ find ./target/generated-sources/ -name "*.java" | xargs  -n1 -I F cp "F" ./src/m
 
 你品，你细品，这个命令真奇怪，好累赘的感觉，哈哈。
 
+- 使用find查找文件夹/文件，并统计数量
+
+```shell
+find . -type f  | wc -l    # 统计当前目录下面所有文件，find递归
+find . -type d  | wc -l    # 统计当前目录下面所有文件夹，find递归
+```
+
+
+
 
 
 ## Vim使用

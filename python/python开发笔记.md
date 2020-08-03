@@ -80,6 +80,14 @@ $ pip download third-packge==version -d "."
 $ pip install third-packege.tar.gz/whl
 ```
 
+如果下载速度不够快，那么可以考虑使用国内镜像，加快速度：
+
+```shell
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple pandas
+```
+
+这里是在下载pandas的时候使用了加速，在下载其他包的时候也可以使用该方法。
+
 
 
 ## 打包和发布

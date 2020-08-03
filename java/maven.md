@@ -525,6 +525,10 @@ missing 了某个包的 version 字段
 
 当然，如果还没解决，也许是不应该在pom.xml里面胡乱配置repositories造成的，删除掉，再试试。
 
+- 方法三
+
+如果总是出现各种编译找不到包的问题，请删除settings.xml文件中，多余的mirror设置，保留一个可用的即可。这样做，貌似maven就不抽风了。
+
 
 
 

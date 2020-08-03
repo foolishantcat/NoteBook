@@ -4629,6 +4629,10 @@ nginx只有一个master进程和已配置个数的worker进程，master进程把
 
 ## TIME_WAIT和CLOSE_WAIT区别
 
+## 是否了解K8S
+
+## 是否了解C10K
+
 
 
 
