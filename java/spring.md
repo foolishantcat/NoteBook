@@ -681,3 +681,30 @@ api相对复杂，容易用错
 
 如果使用乐观读，一定要判断返回的邮戳是否是一开始获得到的，如果不是，要去获取悲观读锁。
 
+
+
+## 接口实例化
+
+按照正常来说，java的接口是不能够直接实例化的，因为接口的方法是抽象方法，没有被实现。
+
+但是java允许直接“匿名实例化”接口类，其实本质上就是实现了接口，但是没有给这个接口命名。
+
+```java
+public interface Test1 {
+  public void test1();
+}
+
+public class ImplClassTest1 {
+  public implClassTest1() {
+    useUnnameInterfaceImpl(new Test1{
+      @Override
+      public void test1(){
+        System.out.println("test1 do something...");
+      }
+    };
+  }
+  
+  private void useUnnameInterfaceImpl(Test1 test1);
+}
+```
+
