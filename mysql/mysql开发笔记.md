@@ -151,3 +151,34 @@ NOT NULL在插入“NULL”时生效
 DEFAULT在字段不赋值的时候生效
 
 **所以not null 和 default是两个独立的约束，可以用在一个字段上，但不会交互使用，是两个独立的约束条件。另外约束条件不仅是在插入数据时有用，当我们在对表数据进行修改时，也会受到约束条件的限制。**
+
+
+
+## 如何从外部导入csv文件数据
+
+使用`mysqlimport`
+
+```mysql
+mysqlimport -u app -p --local testdb testtable --lines-terminated-by="\r\n" --fields-terminated-by="," --fields-optionally-enclosed-by='"' --ignore-lines=1
+```
+
+- --local表示从本地导入
+- --lines-terminated-by表示行以什么结尾
+- --fields-terminated-by表示字段以什么分割
+- --fields-optionally-enclosed-by表示字段以什么包围
+- --ignore-lines表示忽略从文件开头算起的多少行
+- testtable表示本地文件名
+
+这里需要注意，为了避免出现一些字段错位，我们通常将本地文件的名称修改为数据库的表名，本地文件的列顺序，需要和mysql数据表的字段顺序一致。
+
+
+
+## 如何将mysql数据导入到外部csv文件
+
+使用`mysql`
+
+```mysql
+mysql -u app --password=XXXX --database=XXXX -Ne"select fields from testtable" > local_file.csv
+```
+
+该方法导出的csv文件，以`TAB`符分割列，并且不包含表头。
