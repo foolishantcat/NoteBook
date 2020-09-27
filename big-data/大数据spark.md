@@ -29,6 +29,172 @@ spark构成：
 - scala，官方推荐
 - python，可以使用pyspark，对于会python的人来说上手很快
 
+
+
+## Spark的安装
+
+首先到spark的国内镜像地址下载spark的安装包，这里值得注意的是，spark安装需要先安装hadoop和hive，当然，为了节省安装的复杂性，可以直接下载包含hadoop和hive的包。附送一个国内镜像链接：
+
+http://mirror.bit.edu.cn/apache/spark/spark-3.0.1/
+
+选择：`spark-3.0.1-bin-hadoop2.7-hive1.2.tgz`进行下载
+
+然后放到Mac的本地目录，进行解压
+
+`tar xvf spark-3.0.1-bin-hadoop2.7-hive1.2.tgz`
+
+然后，设置一下spark的`sbin`和`bin`目录到用户的环境变量，怎么设置环境变量：
+
+`export PATH='path/to/spark/sbin:$PATH'`
+
+`export PATH='path/to/spark/bin:$PATH'`
+
+启动spark主任务
+
+`./sbin/start-master.sh`
+
+这个时候可以访问spark的管理页面了，访问方式，浏览器打开
+
+`http://localhost:8080`
+
+然后可以看到spark的子worker目前是不存在的，所以，需要启动子worker
+
+`./bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077`
+
+可以在spark管理界面看到，已经启动了子worker了
+
+然后，再使用spark的命令行对spark进行连接
+
+`spark-shell --master spark://localhost:7077 `
+
+这个时候应该会看到一个以scala提示符开头的命令行工具
+
+> scala > 8*2+5
+
+可以自己尝试一下以上的一个test操作，至此，spark就安装完毕了，完美跳过安装hadoop等一系列多余的操作
+
+
+
+此外，假如我们需要单独编写一段代码，然后运行在spark上面，怎么弄呢？这里网上有一个比较简单的例子。当然有scala的版本，python版本，还有java版本，鉴于sbt真的有时候好傻逼，所以我只好用了java。
+
+首先，在根目录创建应用目录：
+
+```shell
+cd ~ #进入用户主文件夹
+mkdir -p ./sparkapp2/src/main/java
+```
+
+在`sparkapp2/src/main/java`目录下面简历一个名为`SimpleApp.java`的文件，并添加如下代码：
+
+```java
+/*** SimpleApp.java ***/
+    import org.apache.spark.api.java.*;
+    import org.apache.spark.api.java.function.Function;
+ 
+    public class SimpleApp {
+        public static void main(String[] args) {
+            String logFile = "file:///opt/spark-3.0.1-bin-hadoop2.7-hive1.2/README.md"; // Should be some file on your system
+            JavaSparkContext sc = new JavaSparkContext("local", "Simple App",
+                "file:///opt/spark-3.0.1-bin-hadoop2.7-hive1.2", new String[]{"target/simple-project-1.0.jar"});
+            JavaRDD<String> logData = sc.textFile(logFile).cache();
+ 
+            long numAs = logData.filter(new Function<String, Boolean>() {
+                public Boolean call(String s) { return s.contains("a"); }
+            }).count();
+ 
+            long numBs = logData.filter(new Function<String, Boolean>() {
+                public Boolean call(String s) { return s.contains("b"); }
+            }).count();
+ 
+            System.out.println("Lines with a: " + numAs + ", lines with b: " + numBs);
+        }
+    }
+```
+
+该程序依赖Spark Java API，因此我们需要通过Maven进行编译打包。在sparkapp2中新建文件`pom.xml`，并添加如下编译内容，生命该独立应用程序的信息，以及与spark的依赖关系：
+
+```xml
+    <project>
+        <groupId>edu.berkeley</groupId>
+        <artifactId>simple-project</artifactId>
+        <modelVersion>4.0.0</modelVersion>
+        <name>Simple Project</name>
+        <packaging>jar</packaging>
+        <version>1.0</version>
+        <repositories>
+            <repository>
+                <id>Akka repository</id>
+                <url>http://repo.akka.io/releases</url>
+            </repository>
+        </repositories>
+        <dependencies>
+            <dependency> <!-- Spark dependency -->
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_2.11</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+        </dependencies>
+    </project>
+```
+
+然后，就是编译和打包jar包了
+
+```shell
+// 一键三连
+mvn clean compile package
+```
+
+最后就是通过`spark-submit`运行程序
+
+```shell
+./bin/spark-submit 
+  --class <main-class>  //需要运行的程序的主类，应用程序的入口点
+  --master <master-url>  //Master URL，下面会有具体解释
+  --deploy-mode <deploy-mode>   //部署模式
+  ... # other options  //其他参数
+  <application-jar>  //应用程序JAR包
+  [application-arguments] //传递给主类的主方法的参数
+```
+
+deploy-mode这个参数用来指定应用程序的部署模式，部署模式有两种：client和cluster，默认是client。当采用client部署模式时，就是直接在本地运行Driver Program，当采用cluster模式时，会在Worker节点上运行Driver Program。比较常用的部署策略是从网关机器提交你的应用程序，这个网关机器和你的Worker集群进行协作。在这种设置下，比较适合采用client模式，在client模式下，Driver直接在spark-submit进程中启动，这个进程直接作为集群的客户端，应用程序的输入和输出都和控制台相连接。因此，这种模式特别适合涉及REPL的应用程序。另一种选择是，如果你的应用程序从一个和Worker机器相距很远的机器上提交，那么采用cluster模式会更加合适，它可以减少Driver和Executor之间的网络迟延。
+
+Spark的运行模式取决于传递给SparkContext的Master URL的值。Master URL可以是以下任一种形式：
+\* local 使用一个Worker线程本地化运行SPARK(完全不并行)
+\* local[*] 使用逻辑CPU个数数量的线程来本地化运行Spark
+\* local[K] 使用K个Worker线程本地化运行Spark（理想情况下，K应该根据运行机器的CPU核数设定）
+\* spark://HOST:PORT 连接到指定的Spark standalone master。默认端口是7077.
+\* yarn-client 以客户端模式连接YARN集群。集群的位置可以在HADOOP_CONF_DIR 环境变量中找到。
+\* yarn-cluster 以集群模式连接YARN集群。集群的位置可以在HADOOP_CONF_DIR 环境变量中找到。
+\* mesos://HOST:PORT 连接到指定的Mesos集群。默认接口是5050。
+
+最后，针对上面编译打包得到的应用程序，可以通过将生成的jar包通过spark-submit提交到Spark中运行，如下命令：
+
+```shell
+/usr/local/spark/bin/spark-submit --class "SimpleApp" ~/sparkapp2/target/simple-project-1.0.jar
+#上面命令执行后会输出太多信息，可以不使用上面命令，而使用下面命令查看想要的结果
+/usr/local/spark/bin/spark-submit --class "SimpleApp" ~/sparkapp2/target/simple-project-1.0.jar 2>&1 | grep "Lines with a"
+```
+
+最后得到结果：
+
+```shell
+Lines with a: 62, Lines with b: 30
+```
+
+用户可以使用访问spark的用户界面，访问已经执行的任务：
+
+> http://localhost:4040
+
+
+
+最后，附上一个安装和调试过程中参考的博客地址：
+
+http://dblab.xmu.edu.cn/blog/1307-2/
+
+
+
+
+
 ## Azkaban使用
 [【以下部分内容引】](https://www.cnblogs.com/honeybee/p/7921626.html)
 

@@ -1,5 +1,11 @@
 # Shell小笔记
 
+用于记录一下运维的shell小知识
+
+
+
+## 删除乱码文件
+
 删除各种???乱码文件
 
 ```shell
@@ -23,5 +29,13 @@ find /data/ethan/DSP/bin ! -name "[a-z,A-Z]*"  | awk -F "/" '$NF != ""{print}' |
 ```shell
 $echo "a b_c d" | sed 's/ //g'
 ab_cd
+```
+
+
+
+## 如何快速找出进程并kill
+
+```shell
+ps -ef | grep gdb | grep -v grep | awk '{print $2}' | sudo xargs kill -9 
 ```
 

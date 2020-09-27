@@ -360,3 +360,14 @@ find . -type d  | wc -l    # 统计当前目录下面所有文件夹，find递�
 
 
 
+## Fish的使用
+
+如果你觉得Mac自带的shell不太好用，或者不够炫，那么你肯定要装一个新东西了。**`fish`**
+
+```shell
+brew install fish
+```
+
+开启美的体验
+
+但是有言在先，fish shell，和bash shell的兼容性不太好。
