@@ -495,6 +495,117 @@ public class Zoo {
 
 2. `@Scope`注解，因为Spring默认生产出来的bean是单例的，假如我不想单例使用怎么办，xml文件里面可以在bean里面配置scope属性。注解也是一样，配置@Scope即可，默认是“singleton”即单例，“prototype”表示原型即每次都会new一个新的出来。
 
+## @Qualifier
+
+使用`@Autowired`注解时spring依赖注入的绝好方法。但是有些场景下仅仅靠这个注解不足以让spring知道到底要注入哪个bean。默认情况下，@Autowired按类型装配spring bean。
+
+如果容器中有多个相同类型的bean，则框架将抛出`NoUniqueBeanDefinitionException`，以提示有多个满足条件的bean进行自动装配。程序无法正确作出判断使用哪一个。下面有个例子：
+
+```java
+@Component("fooFormatter")
+public class FooFormatter implements Formatter {
+  public String format() {
+    return "foo";
+  }
+}
+
+@Component("barFormatter")
+public class BarFormatter implements Formatter {
+  public String format() {
+    return "bar";
+  }
+}
+
+@Component
+public class FooService {
+  @Autowired
+  private Formatter formatter;
+
+  //todo 
+}
+```
+
+如果我们尝试将FooService加载到我们的上下文中，spring框架将抛出`NoUniqueBeanDefinitionException`。这是因为spring不知道要注入哪个bean。为了避免这个问题，有几种解决方案。我这里只讲`@Qualifier`
+
+通过使用`@Qualifier`注解，我们可以消除需要注入哪个bean的问题。让我们重新回顾一下前面的例子，看看我们如何通过包含@Qualifier注释来支出我们想要使用哪个bean来解决问题。
+
+```java
+@Component
+public class FooService {
+  @Autowired
+  @Qualifier("fooFormatter")
+  private Formatter formatter;
+
+  //todo 
+}
+```
+
+通过将@Qualifier注解与我们想要使用的特定spring bean的名称一起进行装配，spring框架就能从多个相同类型并满足装配要求的bean中找到我们想要的，避免让spring脑裂。我们需要做的是@Component或者@Bean注解中生命的value属性以确定名称。
+
+其实我们也可以在Fomatter实现类上使用@Qualifier注解，而不是在@Component或者@Bean中指定名称，也能达到相同的效果：
+
+```java
+@Component
+@Qualifier("fooFormatter")
+public class FooFormatter implements Formatter {
+  public String format() {
+    return "foo";
+  }
+}
+
+@Component
+@Qualifier("barFormatter")
+public class BarFormatter implements Formatter {
+  public String format() {
+    return "bar";
+  }
+}
+```
+
+除此之外，还有另外一个注解也实现类似功能**`@Primary`**，我们也可以用来发生依赖注入的歧义时决定要注入哪个Bean。当存在多个相同的bean时，此注解定义了首选项。除非另有说明，否则将使用与@Primary注释关联的bean。
+
+我们来看一个例子：
+
+```java
+@Bean
+public Employee tomEmployee() {
+  return new Employee("Tom");
+}
+
+@Bean
+@Primary
+public Employee johnEmployee() {
+  return new Employee("john");
+}
+```
+
+以上两个方法都返回相同的Employee类型。spring将注入的bean是方法johnEmployee返回的bean。这是因为它包含@Primary注解。当我们想要指定默认情况下应该注入特定类型的bean时，此注解很有用。
+
+如果我们在某个注入点需要另一个bean，我们需要专门指出它。我们可以通过@Qualifier注解来做到这一点。例如，我们可以通过使用@Qualifier注释指定我们想要使用tomEmployee方法返回的bean。
+
+值得注意的是，如果@Qualifier和@Primary注释都存在，那么@Qualifier注释将具有优先权。基本上，@Primary是定义了默认值，而@Qualifier则非常具体。
+
+当然@Component也可以使用@Primary注解：
+
+```java
+@Component
+@Primary
+public class FooFormatter implements Formatter {
+  public String format() {
+    return "foo";
+  }
+}
+
+@Component
+public class BarFormatter implements Formatter {
+  public String format() {
+    return "bar";
+  }
+}
+```
+
+在这种情况下，@Primary注解指定了默认注入的是FooFormatter，消除了场景中的注入歧义。
+
 ## @Required
 
 @Required注释为为了保证所对应的属性必须被设置，**@Required** 注释应用于 bean 属性的 setter 方法，它表明受影响的 bean 属性在配置时必须放在 XML 配置文件中，否则容器就会抛出一个 BeanInitializationException 异常。下面显示的是一个使用 @Required 注释的示例。*直接的理解就是，如果你在某个java类的某个set方法上使用了该注释，那么该set方法对应的属性在xml配置文件中必须被设置，否则就会报错！！！*
@@ -708,3 +819,11 @@ public class ImplClassTest1 {
 }
 ```
 
+## PO、BO、VO、POJO和DTO
+
+- PO：persistent object 持久对象
+- POJO：Plain ordinary java object 无规则简单java对象
+- BO：business object 业务对象
+- VO：value object 值对象/view object 表现层对象
+- DTO（TO）：data transfer object 数据传输对象
+- DAO：data Access object 数据访问对象
