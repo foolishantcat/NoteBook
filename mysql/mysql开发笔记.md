@@ -1,4 +1,4 @@
-# MySQL开发笔记
+MySQL开发笔记
 
 本笔记记录使用mysql过程中遇到的一些知识点，笔记均来自互联网。
 
@@ -182,3 +182,149 @@ mysql -u app --password=XXXX --database=XXXX -Ne"select fields from testtable" >
 ```
 
 该方法导出的csv文件，以`TAB`符分割列，并且不包含表头。
+
+
+
+## TIMESTAMP和DATE
+
+DATE只保存日期，不保存时分秒。
+
+TIMESTAMP类型保存的值不能比1970早或比2037晚，这意味着，一个日期例如'1968-01-01'，当作为一个DATETIME或DATE值合法时，它不是一个正确TIMESTAMP值，并且如果赋值给这样一个对象，他将被变换到0.
+
+此外，对于TIMESTAMP，它把客户端插入的时间从当前时区转化为UTC（世界标准时间）进行存储。查询时，将其又转化为客户端当前时区进行返回。而对于DATETIME，不做任何改变，基本上是原样输入和输出。
+
+以前MYSQL创建表的时候，timestamp类型的字段可以不加默认值。
+
+```mysql
+`createTime` timestamp COMMENT '创建时间'
+```
+
+这样创建是没有问题的。但是现在却报错，“Invalid default value for 'createTime'”
+
+问题原因：因为MySQL 5.6以后timestamp设定默认值规则改变，不能为0000 00-00 00:00:00
+
+查看网上解决方案是修改mysql安装目录下的my.ini文件。但是我不想改mysql配置。
+
+解决方案：
+
+```mysq
+`createTime` timestamp NULL COMMENT '创建时间'
+```
+
+
+
+## mysql中存储emoji表情
+
+在mysq5.7.19中，创建的数据库默认选择的编码是`utf8 -- UTF-8 Unicode`，因此字段默认的编码为`utf-8`，但在项目开发中存在一个需求；在某个字段中存储混有emoji表情的字符串，此时以普通编码格式`utf8`来存储emoji表情时，会报异常。
+
+解决方案：把字段编码格式更改为`utf8mb4`。
+
+顺便查了一下utf8和utf8mb4的区别：
+
+- UTF-8编码中，一个英文字符占用一个字节的存储空间，一个中文（含繁体）占用三个字节的存储空间。
+- UTF8MB4：MySQL在5.5.3之后增加了utf8mb4的编码，mb4就是most bytes 4的意思，专门用来兼容四字节的unicode。因此可以用来存储emoji表情。
+
+
+
+## mysql类型一览表
+
+- 整形
+
+tinyint（m）：1字节，范围（-128~127）
+
+smallint（m）：2个字节，范围（-32768~32767）
+
+mediumint（m）：3个字节，范围（-8388608~8388607）
+
+int（m）：4个字节，范围（-2147483648~2147483647）
+
+bigint（m）：8个字节，范围（+-9.22*10的18次方）
+
+取值范围如果加了unsigned，则最大值翻倍，如tinyint unsigned的取值范围为（0~256）
+
+int（m）里的m是表示select查询结果集中的显示宽度，并不影响实际的取值范围，没有影响到显示的宽度，不知道这个m有什么用
+
+- 浮点型
+
+float（m，d）：单精度浮点型，8位精度（4字节），m总个数，d小数位
+
+double（m，d）：双精度浮点型，16位精度（8字节），m总个数，d小数位
+
+设一个字段定义为float（5，3），如果插入一个数123.45678，实际数据库里存的是123.456，但总个数还是以实际为准，即6位
+
+- 定点数
+
+浮点数在数据库中存放的是近似值，而定点类型在数据库中存放的是精确值。
+
+decimal（m，d）参数m<65是总个数，d<30且d<m是小数位。
+
+- 字符串
+
+char（n）：固定长度，最多255个字符
+
+varchar（n）：固定长度，最多65535个字符
+
+tinytext：可变长度，最多255个字符
+
+text：可变长度，最多65535个字符
+
+mediumtext：可变长度，最多2的24次方-1个字符
+
+longtext：可变长度，最多2的32次方-1个字符
+
+```
+char和varchar区别：
+1. char（n）若存入字符数小于n，则以空格补上其后，查询之时再将空格去掉。所以char类型存储的字符串末尾不能有空格，varchar不限于此
+2. char（n）固定长度，char（4）不管存入几个字符，都将占用4个字节，varchar是存入的实际字符数+1个字节（n<=255）或2个字节（n>255），所以varchar（4），存入3个字符将占用4个字节。
+3. char类型的字符串检索速度要比varchar类型的快。
+```
+
+```
+varchar和text的区别：
+1. varchar可指定n，text不能指定，内存储varchar是存入的实际字符数+1个字节（n<=255）或2个字节（n>255），text是实际字符数+2个字节。
+2. text类型不能有默认值。
+3. varchar可直接创建索引，text创建索引要指定前多少个字符。varchar查询速度快于text，在都创建索引的情况下，text的索引似乎不起作用。
+```
+
+- 二进制数据（Blob）
+
+1. Blob和text存储方式不同，text以文本方式存储，英文存储区分大小写，而blob是以二进制方式存储，不分大小写。
+2. blob存储的数据只能整体读出。
+3. text可以指定字符集，blob不用也不能指定字符集。
+
+- 日期时间类型
+
+date：日期“2008-12-2”
+
+time：时间“12：25：36”
+
+datetime：日期时间“2008-12-2 22:06:44”
+
+timestamp：自动存储记录修改时间
+
+若定义个字段为timestamp，这个字段里的时间会随其他字段修改的时候自动刷新，所以这个数据类型的字段可以存放这条记录最后被修改的时间。
+
+- 数据类型的属性
+
+NULL：数据列可包含NULL值
+
+NOT NULL：数据列不允许包含NULL值
+
+DEFAULT：默认值
+
+PRIMARY KEY：主键
+
+AUTO_INCREAMENT：自动递增，适用于整数类型
+
+UNSIGNED：无符号
+
+CHARACTER SET name：指定一个字符集
+
+
+
+## MySQL修改表结构
+
+```mysql
+ALTER TABLE {table_name} ADD COLUMN field_name VARCHAR(1) DEFAULT NULL COMMENT '增加一个字段demo';
+```
+

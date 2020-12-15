@@ -180,6 +180,8 @@ public class MySubClass extends MySuperClass { ... }
 
 `org.springframework.scheduling.annotation`
 
+springboot异步操作可以使用`@EnableAsync`和`@Async`两个注解，本质就是`多线程`和`动态代理`。
+
 装饰器定义：
 
 ```java
@@ -201,11 +203,17 @@ public class Test{
 }
 ```
 
-被修饰的方法返回值只可能是`void`或`Feture`类型。一般来说说，会声明`ListenableFuture`或`CompletableFuture`类型，这两种类型具有更为丰富的异步任务交互体验。
+被修饰的方法返回值只可能是`void`或`Feture`类型（**否则异步失效**）。一般来说说，会声明`ListenableFuture`或`CompletableFuture`类型，这两种类型具有更为丰富的异步任务交互体验。
 
 当返回一个`Feture`句柄时，能够被用于追踪异步方法执行的结果。
 
 如果在Spring里面使用Aysnc装饰器，需要在启动类加上`@EnableAsync`注释。
+
+此外，`@Async`注释用在非`public`方法上面，异步会失效
+
+当spring框架里面，使用`@Async`时，被`@Async`修饰的`public`方法，只能被`Controller`直接调用时才会生效。
+
+此外，被修饰的函数，调用者必须是外部使用者，如果内部函数调用会出现代理绕过的问题，从而无法执行异步，不会出错，会变成同步操作，看起来就是`@Async`失效的状态。
 
 ## @RestController
 
@@ -673,6 +681,144 @@ class ScheduleConfig implements ShedulingConfigurer {
 
 
 
+## @Qualifier
+
+使用`@Autowired`注解是Spring依赖注入的绝好方法。但是有些场景下仅仅靠这个注解不足以让Spring知道到底要注入哪个bean。
+
+默认情况下，@Autowired按类型装配Spring Bean。
+
+如果容器中有多个相同类型bean，则框架将抛出`NoUniqueBeanDefinitionException`，以提示有多个满足条件的bean进行自动装配。程序无法正确作出判断使用哪一个。
+
+比较常见的场景就是`@Autowired`注解在了一个被多个子类实现的父类上面。
+
+为了避免这样的问题，有几种解决方案，`@Qualifier`注解就是其中之一。
+
+在实现类和声明类的地方，都使用Qualifier进行注解，并且使用相对应的指定名称即可。
+
+`@Qualifier`和`@Primary`做对比：
+
+存在相同类型的bean时，后者定义了一个首选项。除非有说明，否则将使用与`@Primary`注释关联的bean。
+
+还有一个我们值得注意，但是不建议使用的特性:
+
+在使用`@Autowired`进行自动装配时，如果Spring没有其他提示，将会按照需要注入的变量名称来寻找合适的bean。也可以解决依赖注入歧义的问题。（但是我感觉这个简直就是扯淡，建议大家看看就好，魔幻操作）
+
+
+
+## @Transactional
+
+使用spring框架的事务，真的要了解的东西太多。这里我先给个简要的结论：
+
+- 基于TransactionDefinition、PlatformTransactionManager、TransactionStatus编程式事务管理是Spring提供的最原始的方式，通常我么不会这么写，但是了解这种方式对理解Spring事务管理的本质有很大作用
+- 基于TransactionTemplate的编程式事务管理是对上一种方式的封装，使得编码更简单、清晰。
+- 基于TransactionInterceptor的声明式事务是Spring声明式事务的基础，通常不建议使用这种方式，但是与前面一样对理解Spring声明式事务有很大作用。
+- 基于TransactionInterceptor的声明式事务是Spring声明式事务的基础，通常也不建议使用这种方式，但是与前面一样，了解这种方式对理解Spring声明式事务有很大作用。
+- 基于TransactionProxyFactoryBean的声明式事务是上种方式的改进版本，简化的配置文件的书写，这是Spring早期推荐的声明式事务管理方式，但是在Spring2.0中已经不推荐了。
+- 基于<tx>和<aop>命名空间的声明式事务管理是目前推荐的方式，其最大特点是与Spring`AOP`结合紧密，可以充分利用切入表达式的强大支持，使得管理事务更加灵活。
+- 基于`@Transactional`的方式将声明式事务管理简化到了极致。开发人员只需在配置文件中加上银行启用相关后处理Bean的配置，然后在需要实施事务管理的方法或者类上使用`@Transactional`指定事务规则即可实现事务管理，而且功能也不比其他方式逊色。
+
+那么，由此可见，事务分为两种：`编程式事务`、`声明式事务`
+
+Spring事务跨越了一个比较清晰的发展阶段，总体来说就是越来越方便了。简而言之，可以使用刀耕火种的编程式，也可以使用鸟枪换炮的声明式事务。
+
+为了忠于人的本能--懒惰，当然首推`声明式事务`。那么下面主要介绍在使用声明式事务的过程中遇到的坑。
+
+一般情况，我们在处理具体的业务都是在`Service`层来进行处理操作，此时如果再Service类上添加`@Transactional`注解的话，那么Service层的每一个业务方法调用的时候都会打开一个事务。
+
+注意点：Spring默认情况下会对（RuntimeException）及其子类来进行回滚，在遇见Exception及其子类的时候则不会进行回滚操作。
+
+
+
+## @ImportResource
+
+`@ImportResource`和我们之前介绍的`@Value`功能很类似，都是用来进行资源文件读取。重点介绍一下`@ImportResource`。
+
+我们先来看一个Bean的配置文件
+
+```xml
+<beans>
+    <context:annotation-config/>
+    <context:property-placeholder location="classpath:/com/acme/jdbc.properties"/>
+
+    <bean class="com.acme.AppConfig"/>
+
+    <bean class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+</beans>
+```
+
+这个使用`property-placeholder`，在使用它的时候，它会对应一个资源文件，对应一个localtion，location对应一个资源文件的存放位置。
+
+<font color=red>`<context:property-placeholder location="classpath:/com.acme/jdbc.properties">`</font>，这句话的作用是加载properties资源文件。properties文件是一种key、value的形式的文件（**其实这种说法也不对，key-value形式文件形式有很多，这里应该是可以加载xml形式的配置文件**）。
+
+加载了这个文件之后，在当前的文件中，可以通过`${}`的方式，`{}`里边是properties文件中的key，通过这种方式来引用properties文件中的内容。比如说常用的数据库的配置方式。
+
+我们的配置信息通常会写在资源文件中，然后通过properties-placeholder这种方式去把它加载进来。然后在当前的配置文件中去引用它。比如说这里指定了一种数据源资源`DriverManagerDataSource`，然后可以指定这种数据源的url、username和password，它们的来源就是这个资源文件。
+
+以上是使用xml文件配置的方式，那么如果使用注解要怎么做？（众所周知，一般spring都会支持xml的特征可注解化，这个很好理解，注解是可以被编译期间进行检查的，更加符合编译语言的天性）。
+
+```java
+@Configuration
+@ImportResource("classpath:/com/acme/properties-config.xml")
+public class AppConfig{
+
+    @Value("${jdbc.url}")
+    private String url;
+
+    @Value("${jdbc.username}")
+    private String username;
+
+    @Value("${jdbc.password}")
+    private String password;
+
+    @Bean
+    public DataSource dataSource() {
+        return new DriverManagerDataSource(url,username,password);
+    }
+}
+```
+
+使用`@Configuration`，把这个类作为一个配置来使用。`@ImportResource`就是引入一个这种资源，然后资源对应一个xml文件，和前个例子差不多，xml文件也会对应一个property-placeholder。
+
+用`@Value`这个注解从资源文件中取出它的key赋值给成员变量，包括username、password等。然后再使用@Bean这个注解去创建DriverManagerDataSource的一个对象，也就是和第一种的方式一样，去创建这个Bean对象，同时把url、username、password传入DriverManagerDataSource的构造器。
+
+这样就达到了从资源文件中去加载资源文件的配置，并应用到Bean的创建中。
+
+然后再配合一个带参数的类构造函数：
+
+```java
+@Bean
+public class MyDriverManager {
+
+    public MyDriverManager(String url, String userName, String password) {
+        System.out.println("url : " + url);
+        System.out.println("userName: " + userName);
+        System.out.println("password: " + password);
+    }
+}
+```
+
+将从资源文件中获取的参数，注入类的构造参数中。
+
+在使用的时候，使用@Autowired获取类的实例的时候，就会自动根据xml文件配置的参数，生成类的对象。
+
+大体就是这样子。
+
+
+
+## @Order
+
+@Order注解的主要作用就是控制Bean生成的顺序，比方说@Order(1)比@Order(2)会先被初始化，这个主要用在spring启动的时候，控制一些Bean的依赖关系，了解到这么多就可以了。
+
+
+
+
+
+
+
 ## synchronized
 
 Java中的synchronized关键字可以在多线程环境下用来作为线程安全的同步锁。本文主要对synchronized的作用，以及其有效范围进行讨论。
@@ -827,3 +973,189 @@ public class ImplClassTest1 {
 - VO：value object 值对象/view object 表现层对象
 - DTO（TO）：data transfer object 数据传输对象
 - DAO：data Access object 数据访问对象
+
+
+
+## 动态定时任务&静态定时任务
+
+- 主要区别
+
+动态和静态定时任务的区别就是**`执行任务周期的cron表达式是配置在文件中还是代码中`**
+
+我认为上面的理解是不到位的，java的配置文件假如修改，也是需要发版本的，也不能算真的“动态”，
+
+如果，能够通过接口创建定时任务，并且可以通过接口参数控制定时器的生成和销毁，那么就可以称为“动态定时任务”。
+
+- 定时任务有三种实现
+
+1. jdk自带的定时任务
+2. Quartz插件实现的定时任务，需要引入额外的包
+3. Spring Task定时调度，是对jdk的再一次封装，不用引入其他包了，用spring的包就自带
+
+**静态、动态定时任务，只是使用场景不同，没有好坏之分**
+
+- cron表达式
+
+从左到右（用空格隔开）：秒 分 小时 月份中的日期 月份 星期中的日期 年份
+
+```
+每隔5秒执行一次：*/5 * * * * ?
+每隔1分钟执行一次：0 */1 * * * ?
+每天23点执行一次：0 0 23 * * ?
+每天凌晨1点执行一次：0 0 1 * * ?
+每月1号凌晨1点执行一次：0 0 1 1 * ?
+每月最后一天23点执行一次：0 0 23 L * ?
+每周星期天凌晨1点实行一次：0 0 1 ? * L
+在26分、29分、33分执行一次：0 26,29,33 * * * ?
+每天的0点、13点、18点、21点都执行一次：0 0 0,13,18,21 * * ?
+```
+
+
+
+## Java异常分类
+
+发现错误的理想时机是编译期。然后，编译器并不能发现所有的错误，余下的问题就需要在程序运行时解决。
+
+Java异常的明显好处，就是：降低错误处理代码的复杂度。非常像C语言的goto，但是比那个好用多了，不用考虑破坏堆栈的问题。
+
+Java中，异常被当做对象处理，这也符合面向对象语言，一切皆为对象的理念，其基类是Throwable。
+
+Java从Throwable直接派生出`Exception`和`Error`。其中`Exception`是可以抛出的基本类型，在Java类库、方法以及运行时故障中都可能抛出Exception异常。Exception表示`可以恢复的异常`，是编译器可以捕捉到的；`Error`表示编译时和系统错误，表示系统在运行期间出现了严重的错误，属于`不可恢复的错误`，由于这属于JVM层次的严重错误，因此这种错误会导致程序终止执行。
+
+此外，`Exception`又分为`检查异常`和`运行时异常（RuntimeException）`。
+
+典型的RuntimeException包括：`NullPointerException`,`ClasCastException（类型转换异常）`，`IndexOutOfBoundsException(越界异常)`，`IllegalArgumentException(非法参数异常)`，`ArrayStoreException(数组存储异常)`，`AruthmeticException(算术异常)`，`BufferOverflowException(缓冲区溢出异常)`等；
+
+非`RuntimeException`，称为`检查异常`，包括：`IOException`,`SQLException`,`InterruptedException(中断异常-调用线程睡眠异常)`，`NumberFormatException(数字格式化异常)`等。
+
+而按照`编译器检查方式`划分，异常又可以分为：检查型异常（`CheckedException`）和非检查型异常（`UncheckedException`）。`Error`和`RuntimeException`合起来称为`UncheckedException`，之所以这么称呼，是因为编译器不检查方法是否处理或者抛出这两种类型的异常，因此编译期间这种类型的异常也不会报错，默认由虚拟机提供处理方式。除了Error和RuntimeException这两种类型的异常外，其他异常都称为Checked异常。
+
+在异常的处理环节，有一个点需要注意：**异常链**
+
+常常想要在捕获一个异常后抛出另外一个异常，并且希望把原始异常信息保存下来，这就是异常链。在JDK1.4以后，Throwable子类在构造器中可以接受一个`cause`对象作为参数，表示原始异常，通过这样把原始异常传递给新的异常，使得即使在当前位置创建并抛出了新的异常，也能通过这个异常链追踪到异常最初发生的位置。
+
+但在Throwable子类中，只有`Error、Exception、RuntimeException`三类异常提供了带cause参数的构造器，其他类型的异常则需要通过initCause()方法。例如定义了CustomException类，可以这样使用：
+
+```java
+CustomException cmex = new CustomException();
+cmex.initCause(new NullPointerException)；
+throw cmex;
+```
+
+这样一来，CustomException继承自Exception或RuntimeException，就属于自定义异常了。
+
+一般来说，自定义异常在使用中要注意以下情况：
+
+1. 将检查型异常转换为非检查型异常
+2. 在产生异常时封装上下文信息、定义异常码、收集环境对象，有利于信息的传递
+3. 在知道该如何处理的情况下才捕获异常
+4. 自定义异常类型，用以封装所有的检查型异常
+5. 在程序的边界进行异常捕获。如服务器相对应客户端的请求，在出口处统一catch内部异常，以免暴露服务端敏感信息
+6. 只针对异常的情况才使用。不要在所有的代码中习惯性加try-catch，因为影响性能
+7. 抛出与抽象相对的异常。如果方法抛出的异常与它执行的任务没有明显的联系，这中情况会让人不知所措。为了避免这个问题，更高层的实现应该捕获底层异常，同时抛出可以按照高层抽象进行解释的异常，这种做法被称为异常转译（exception translation）。高层通常提供访问方法（Throwable.getCause）来获得底层的异常。
+8. 每个方法抛出的异常要有文档描述。利用javadoc的@throws标记，记录抛出每个异常的条件。如果一个方法可能抛出多个异常，不要使用异常类的某个超类。如不要声明一个方法“throw Exception”或“throw Throwable”，这将没有任何指导信息。
+
+
+
+## Predicate接口的使用
+
+这个接口可以理解为Java函数式编程的典范，可以上一下接口源码：
+
+```java
+public interface Predicate<T> {
+    /**
+     * Evaluates this predicate on the given argument.
+     */
+    boolean test(T t);
+
+    /**
+     * Returns a composed predicate that represents a short-circuiting logical
+     * AND of this predicate and another.  When evaluating the composed
+     * predicate, if this predicate is {@code false}, then the {@code other}
+     * predicate is not evaluated.
+     */
+    default Predicate<T> and(Predicate<? super T> other) {
+        Objects.requireNonNull(other);
+        return (t) -> test(t) && other.test(t);
+    }
+
+    /**
+     * Returns a predicate that represents the logical negation of this
+     * predicate.
+     */
+    default Predicate<T> negate() {
+        return (t) -> !test(t);
+    }
+
+    /**
+     * Returns a composed predicate that represents a short-circuiting logical
+     * OR of this predicate and another.  When evaluating the composed
+     * predicate, if this predicate is {@code true}, then the {@code other}
+     * predicate is not evaluated.
+     */
+    default Predicate<T> or(Predicate<? super T> other) {
+        Objects.requireNonNull(other);
+        return (t) -> test(t) || other.test(t);
+    }
+
+    /**
+     * Returns a predicate that tests if two arguments are equal according
+     * to {@link Objects#equals(Object, Object)}.
+     */
+    static <T> Predicate<T> isEqual(Object targetRef) {
+        return (null == targetRef)
+                ? Objects::isNull
+                : object -> targetRef.equals(object);
+    }
+}
+```
+
+Predicate是个断言式的接口，其参数是<T, boolean>，也就是给一个参数T，返回boolean类型的结果。Predicate的具体实现也是根据传入的lambda表达式来决定的。
+
+```java
+boolean test(T t);
+```
+
+三个方法：`and`、`or`、`negate`，这三个方法分别对应java三个连接符号`&&、||、!`
+
+下面有一段代码：
+
+```java
+int[] numbers= {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+		List<Integer> list=new ArrayList<>();
+		for(int i:numbers) {
+			list.add(i);
+		}
+		Predicate<Integer> p1=i->i>5;
+		Predicate<Integer> p2=i->i<20;
+		Predicate<Integer> p3=i->i%2==0;
+		List test=list.stream().filter(p1.and(p2).and(p3)).collect(Collectors.toList());
+		System.out.println(test.toString());
+/** print:[6, 8, 10, 12, 14]*/
+```
+
+定义了三个断言p1，p2，p3。现在有一个从1~15的list，我们需要过滤这个list。上述的filter是过滤出所有大于5小于20，并且是偶数的列表。
+
+假如突然我们的需求变了，我们现在需要过滤出奇数。那么我们不可能直接去改Predicate，因为实际项目中这个条件可能在别的地方也要使用。那么此时我只需要修改filter中的Predicate条件。
+
+```java
+List test=list.stream().filter(p1.and(p2).and(p3.negate())).collect(Collectors.toList());
+/** print:[7, 9, 11, 13, 15]*/
+```
+
+我们直接对p3这个条件取反就可以实现了。
+
+其实，上面的例子并不是十分贴切，取自互联网。
+
+而实际我们工程中，用到Predicate的地方，通常都是判断的过程和逻辑基本相似，可能只有某个条件，是不一致的。我们会将这个条件用lambda表达式，将处理逻辑传入Predicate，以达到减少重复代码的效果，这里我就不一一展示代码了。
+
+此外，Predicate的函数式设计哲学，可以将T类型所包含的业务逻辑和Predicate所表示的filter逻辑有效的解耦开来。
+
+
+
+
+
+
+
+
+
