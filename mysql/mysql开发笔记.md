@@ -328,3 +328,116 @@ CHARACTER SET name：指定一个字符集
 ALTER TABLE {table_name} ADD COLUMN field_name VARCHAR(1) DEFAULT NULL COMMENT '增加一个字段demo';
 ```
 
+
+
+## 视图View使用
+
+视图是一个**虚拟表**，是sql的查询结果，其内容由查询定义。同真是表一样，视图包含一系列带有名称的列和行数据，在使用视图时动态生成。视图的数据变化会影响到基表，基表的数据变化也会影响到视图[`insert` `update` `delete`]；创建视图需要`create view`权限，并且对于查询涉及的列有select权限；使用create or replace或者alter 修改视图，那么还需要该视图的drop权限。
+
+- 视图的作用
+
+1. 权限控制时
+
+比如某几个列，允许用户查询，其他列不允许。
+
+可以通过视图，开放其中一列或几列，起到权限控制的作用。
+
+2. 简化复杂查询
+
+查询每个栏目下商品的平均价格，并且按照平均价格排序，查出平均价格前3高的栏目
+
+3. 视图能不能更新，删除，添加？
+
+如果视图的每一行，是与物理表一一对应的，则可以。
+
+view的行是物理表多行经过计算得到的结果，view不可以更新。
+
+4. 大数据分表时可以用到
+
+表行数超过200w行时，select速度会变慢。这时可以使用id取模，将一张表的数据存入4张表。
+
+然后用一张视图包括4张表：
+
+```sql
+create view news as select from n1 union select from n2 union ...
+```
+
+- 视图的使用
+
+1. 创建视图
+
+```sql
+create view 视图名 as select 字段名 from 表名;
+```
+
+MySQL视图的定义在from关键字后面，不能包含子查询
+
+2. 修改了视图，对基表数据有影响
+3. 修改了基表，对视图也有影响
+4. 修改视图
+
+```sql
+alter view 视图名 as select 语句；
+alter view 视图名 as select 视图；
+```
+
+5. 显示视图创建情况
+
+```sql
+show create view 视图名;
+```
+
+6. 查看视图
+
+```sql
+show tables;
+show table status [from db_name] [like 'pattern'];
+select * from information_schema.views where table_name = 'my_view';
+```
+
+7. 删除视图
+
+```sql
+drop view 视图名,[视图名...];
+```
+
+8. 重命名视图
+
+```sql
+Rename table 视图名 to 新视图名;
+```
+
+- 使用视图的好处
+
+1. 安全
+2. 性能。避免使用JOIN查询数据
+3. 灵活。如果系统中有一张旧的表，这张表由于设计问题，即将被废弃。然后，很多应用都是基于这张表，不易修改，这时就可以建立一张视图，视图中的数据直接映射到新建的表。这样，就可以少做改动，也达到了升级数据表的目的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

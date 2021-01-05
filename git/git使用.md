@@ -1,4 +1,4 @@
-## git打tag
+git打tag
 
 有时候上线一个版本后，出现故障了，需要紧急回顾，如果公司内部还没有成熟的代码回滚平台，那么可以使用打`tag`的方式，为上一个已经在线上运行的版本，打个标签。具体操作如下：
 
@@ -78,4 +78,26 @@ $ git tag -d v1.0
 ```shell
 $ git push origin :refs/tags/v1.0
 ```
+
+
+
+### git查看某个文件的修改记录
+
+```shell
+git log {filename}
+```
+
+可以看到filename相关的commit记录
+
+```shell
+git log -p {filename}
+```
+
+可以显示每次提交的`diff`
+
+```shell
+git show {commitid} {filename}
+```
+
+可以查看某次提交中的某个文件变化
 
