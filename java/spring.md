@@ -461,6 +461,127 @@ public @interface Bean
 
 简单来说，有了它之后，不用再使用xml文件进行类注入了。而是向容器中添加`Bean`所修饰的指定类即可。
 
+
+
+## @Component
+
+在类上使用`@Component`，使用注解，相当于下面一句xml语句：
+
+```xml
+<bean id="xxx" class="com.path.to.xxxImpl" />
+```
+
+
+
+## @Configuration
+
+有些网上的说法说的非常复杂，其实简单理解，就是把xml注入Bean的方式，改为了注解注入的方式:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 在类中使用@Configuration，相当于添加了一个beans，是一系列bean的集合 -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/context
+                           http://www.springframework.org/schema/beans/spring-context.xsd">
+ 
+ 
+ 
+    <!--在类中使用@Component，使用注解，相当于下面一行语句-->
+    <!--<bean id="useService" class="com.gyf.service.UserServiceImpl"/>-->
+ 
+ 
+    <context:annotation-config/>
+ 
+    <!--这个包下的文件都会被检测-->
+    <context:component-scan base-package="com.gyf"/>
+</beans>
+```
+
+@Configuration类允许通过同一个类中的其他@Bean方法来定义bean之间的依赖关系。
+
+使用@Configuration注解，在调用类内方法的时候，需要获取参数实例的时候，会去spring的单例bean工厂中获取参数单例bean实例。
+
+不使用@Configuration注解，实例化类内参数的时候，每次都会创建一个新的对象。
+
+
+
+## @Bean和@Conponent的区别
+
+要想理解这两个的区别，首先我们需要理解spring是如何管理Bean的。
+
+spring帮助我们管理Bean分为两个部分：一个是`注册Bean`，一个是`装配Bean`。
+
+完成这两个动作**有三种方式：自动装配、JavaConfig、XML配置**。
+
+- 自动装配方式
+
+使用`@Component`去告诉spring，我是一个Bean，你要来管理我，然后使用`@Autowired`注解去装配Bean（**所谓装配，就是管理对象直接的协作关系**）。
+
+- JavaConfig方式
+
+然后在JavaConfig中，`@Configuration`其实就是告诉spring，spring容器要怎么配置（**怎么去注册bean，怎么去处理bean之间的关系--装配**）。那么，就很好理解了。@Bean的意思就是，我要获取这个bean的时候，spring要按照这种方式去帮我获取到这个bean。
+
+- XML方式
+
+到了使用xml的方式，也是如此。君不见**<bean>**标签就是告诉spring怎么获取这个bean，各种<ref>就是手动的配置bean之间的关系。
+
+用`@Bean`注解的**`方法`**：会实例化、配置并初始化一个新的对象，这个对象会由spring IoC容器管理。
+
+```java
+@Configuration
+public class AppConfig {
+  @Bean
+  public MyService myService() {
+    return new MyServiceImpl();
+  }
+}
+```
+
+相当于在XML文件中配置
+
+```xml
+<beans>
+	<bean id="myService" class="com.xx.xx.xxImpl" />
+</beans>
+```
+
+生成对象的名字：默认情况下用@Bean注解的方法名作为对象的名字。但是可以用name属性定义对象的名字。
+
+```java
+@Configuration
+public class AppConfig {
+  @Bean(name = "myFoo")
+  public MyService myService() {
+    return new MyServiceImpl();
+  }
+}
+```
+
+**需要注意的是：在@Component注解的类中不能定义 类内依赖的@Bean注解的方法，简单说@Component注解的类里面不能用@Bean注解方法。**
+
+**而@Configuration是可以的**
+
+这个也很好理解，@Component本身已经就是声明Bean的一种方式，不能嵌套使用@Bean注解。
+
+简单总结一下：
+
+1. @Conponent作用就相当于XML配置中的`<bean>`标签，声明了一个bean
+2. @Bean需要在配置类中使用，即类上需要加上@Configuration注解
+3. 两者都可以通过@Autowired装配
+4. @Bean注解比@Component注解的自定义性更强，而且很多地方只能通过@Bean注解来注册bean。**比如当引用第三方库类需要装配到spring容器的时候，就只能通过@Bean注解来实现。因为无法在第三方库的源代码上加上@Component注解。**
+
+
+
+## @Lazy
+
+一般情况下，spring容器在启动时会创建所有的Bean对象，使用`@Lazy`注解可以将Bean对象的创建延迟到第一次使用Bean的时候。
+
+
+
 ## @Autowired
 
 ### @Autowired和@Resource
@@ -1153,9 +1274,48 @@ List test=list.stream().filter(p1.and(p2).and(p3.negate())).collect(Collectors.t
 
 
 
+## servlet/tomcat/spring之间的关系
 
+用Java有一个很大的好处，就是不管程序员自身水平有多烂，仍然可以写出非常出轨的代码。
 
+很多人，用了很久的spring，或者tomcat，都不知道这其中他们是什么关系，如何配合运作的。
 
+在这里，不得不上一点冷知识。
 
+首先我们看servlet，可以尝试打开一个servlet的源码看一下，其实servlet就是一个接口。接口就是规定了一些规范，使得一些具有某些共性的类都能实现这个接口，从而都遵循某些规范（**这里我想引出另外一些思考--来自互联网**）。
 
+有的人往往以为就是servlet直接处理客户端的http请求，其实并不是这样，servlet并不会去监听8080端口，或者直接与客户端打交道。直接和客户端（其实是监听8080端口）打交道的是“容器”，比如常用的tomcat。
+
+客户端的请求是直接打到tomcat，它监听端口，请求过来后，根据url等信息，确定要将请求交给哪个servlet去处理，然后调用哪个servlet的service方法，service方法返回一个response对象，tomcat再把这个response返回给客户端。下面有一张图，非常好理解：
+
+![image-20210107234617694](/Users/ethancao/notebook/NoteBook/java/img//image-20210107234617694.png)
+
+所以，简单理解servlet，可以认为servlet就是tomcat中用于处理具体业务的**Handler**。
+
+而servlet的接口中，处理业务的核心接口是**`service()`**接口。
+
+**这里我们需要知道的是，每一个servlet在tomcat的容器里面，只存在一个实例**
+
+那么，tomcat是如何处理并发请求的呢？答案就是**多线程**，而tomcat会起一个线程池去处理并发请求，这个线程池是可以设置的。
+
+因此，在多线程下，`线程安全`的问题，自然而然就产生了（**多个线程同时访问service()接口**）。那么存在哪些场景会涉及线程安全呢？
+
+- 如果service()方法没有访问servlet的成员变量，也没有访问全局的资源--比如静态变量、文件、数据库连接等，而只是使用了当前线程自己的资源，比如非指向全局资源的临时变量、request和response对象等。该方法是线程安全的，不必进行任何的同步控制。
+- 如果service()方法访问了servlet的成员变量，但是对该变量只是读取操作，那该方法线程安全。
+- 如果service()方法访问了servlet的成员变量，并进行了变量写操作，那么通常需要加上同步控制语句。
+- 如果service()方法访问了全局静态变量，如果同意时刻系统中也可能有其他线程访问该静态变量，如果有读有写，通常需要加上同步控制语句。
+- 如果service()方法访问了全局的资源，比如文件、数据库连接等，通常需要加上同步控制语句。
+
+这就是所谓的**半同步半异步**网络编程模型，这样做，有以下几点好处：
+
+1. servlet单实例，减少了产生servlet的开销
+2. 通过线程池来响应多个请求，提高了请求的响应时间
+3. servlet容器并不关心到达servlet请求访问，是否是同一个servlet还是另一个servlet，直接分配线程处理
+4. 每一个请求由servletRequest对象来接受请求，由ServletResponse对象来响应请求，标准化
+
+最后，怎么理解spring和上面两者之间的关系？
+
+一句话解释：**任何spring web的entry point，都是servlet**。只是spring又做了一些花里胡哨的封装，让你更加不敢出轨撸码。
+
+这样，就基本上清楚了。
 

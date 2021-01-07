@@ -101,3 +101,42 @@ git show {commitid} {filename}
 
 可以查看某次提交中的某个文件变化
 
+
+
+## stash使用
+
+**前提：必须是出于git下的文件，未add到git的文件无法使用**
+
+`git stash`这条命令主要用于当前的修改并没有`git add`到暂存区，并且希望可以`git checkout`到其它分支。
+
+- `git stash`
+
+保存当前工作进度，并且将`工作区`和`暂存区`恢复到修改之前。
+
+- `git stash save {message}`
+
+作用同上，message为此次进度保存的说明。
+
+- `git stash list`
+
+显示保存的工作进度列表，编号越小代表保存进度的时间越近
+
+- `git stash pop stash@{num}`
+
+恢复工作进度到工作区，次命令的`shash@{num}`是可选项，在多个工作进度中可以选择恢复，不带此项默认恢复最近的一次进度
+
+相当于`git stash pop stash@{0}`
+
+- `git stash apply stash@{num}`
+
+恢复工作进度到工作区且该工作进度可重复恢复，此命令的`stash@{num}`是可选项，在多个工作进度中可以选择恢复，不带此项则默认恢复最近的异常进度，相当于`git stash apply stash@{0}`
+
+- `git stash drop stash@{num}`
+
+删除一条保存的工作进度，此命令的`stash@{num}`是可选项，在多个工作进度中可以选择删除，不带此项则默认删除最近的一次进度
+
+相当于`git stash drop stash@{0}`
+
+- `git stash clear`
+
+删除所有保存的工作进度
