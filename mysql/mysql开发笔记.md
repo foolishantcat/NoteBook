@@ -326,6 +326,7 @@ CHARACTER SET name：指定一个字符集
 
 ```mysql
 ALTER TABLE {table_name} ADD COLUMN field_name VARCHAR(1) DEFAULT NULL COMMENT '增加一个字段demo';
+ALTER TABLE {table_name} MODIFY COLUMN {field_name} VARCHAR(1) DEFAULT NULL COMMENT '修改字段的注释demo';
 ```
 
 
@@ -415,9 +416,33 @@ Rename table 视图名 to 新视图名;
 
 
 
+## 联表删除
 
+希望删除t1表中，在t2表中已经存在，或者不存在的数据，这就叫联表删除。
 
+```sql
+delete t1
+from t1 left join t2
+on t1.id_1 = t2.id_1
+where t2.id_2 is null
+```
 
+上面的语句的意思就是：删除t1表中在t2表中不存在的数据
+
+如何给上面的语句设置别名？
+
+```sql
+delete a
+from t1 as a left join t2 as b
+on a.id_1 = b.id_1
+where b.id_2 is null
+```
+
+如果你为一个表声明了别名，`当你的删除动作指向这个表的时候，就必须使用这个别名`。
+
+此外，在多个表联合删除时，不能使用`order by`或`limit`，单个表的删除时就没有这个限制。
+
+当前，我们还不能在删除表的时候，在子查询中`select from`相同的表。
 
 
 

@@ -1338,3 +1338,134 @@ List test=list.stream().filter(p1.and(p2).and(p3.negate())).collect(Collectors.t
 > 总结了，如果说javaee与ejb属于爸爸跟亲儿子，那么可以说Javaee跟spring就是爸爸跟养子的关系。javaer们为了让独立开发更伸得开手，采用了一种介于规范与独立之间的开发方式，特别是在mvc概念已经深入人心之后，那么模块设计就愈加明确在各个环节上，所以就有了早期的xwork（struts 前身），springmvc等来负责servlet的映射与路由规则，hibernate，ibatis（mybatis前身）来负责orm规则，velocity，freemaker等负责jsp的视图规则。spring因为其优秀的对“对象管理”的特性，非常好的可以将这所有的框架串起来，实现一个完整的mvc，这就是基本上大多数java框架都支持spring配置，而也正因为spring的桥梁作用，使得这种灵活又规范的开发模式得以深入到java开发的各个细节。
 >
 > 好了，养子最后要想离家出走，但骨子里已经烙下了养父的情节。
+
+
+
+# springEL（表达式语言）
+
+springEL：spring表达式语言，是一个支持查询和操作运行时对象导航图功能的强大表达式语言。能够提供函数调用。
+
+用法：可以基于注解或者xml
+
+格式：*#{}*
+
+## 基于xml
+
+```xml
+<bean id="Memory" class="com.xml.Memory">
+	<property name="memoryNum" value="1024">
+  </property>
+</bean>
+<bean id="Computer" class="com.xml.Computer">
+  <property name="memoryNum" value="#{Memory.memoryNum}">
+  </property>
+  <property name="memory" ref="Memory"></property>
+</bean>
+```
+
+## 基于注解
+
+```java
+@Component
+public class Computer {
+  @Value("#{memory.memoryNum}")
+  private int memoryNum;
+  @Value("#{memory}")
+  private Memory memory;
+}
+```
+
+## 基于方法
+
+```java
+@Component("item")
+public class Item {
+  @Value("#{'tea'.toUpperCase()}")
+  private String upName;
+  @Value("#{mathUtil.getLength()}")
+  private int itemLength;
+  @Value("#{mathUtil.getArea(3)}")
+  private double itemArea;
+}
+```
+
+> mathUtil：是自己创建的工具类，里面有两个方法
+
+## 基于构造
+
+```java
+@Component
+public class Computer1 {
+  @Value("#{new com.constructor.Memory1()}")
+  private Memory1 memory1;
+  @Value("#{new int[]{1,2,3}}")
+  private int[] count;
+}
+```
+
+> 注：默认调用无参构造
+
+## 基于操作符
+
+```java
+@Component
+public class MathItem {
+  @Value("#{3+5}")
+  private int num1;
+  @Value("#{3^3}")
+  privae int num2;
+  @Value("#{5>4}")
+  private boolean num3;
+}
+```
+
+## 基于集合
+
+```java
+@Value("#{dataItem.list}")
+private List list;
+@Value("#{dataItem.list[1]}")
+private String listValue;
+@Value("#{dataItem.map['2']")
+private String mapValue;
+```
+
+springEL集合选择：
+
+- **.?[]** 可以设置筛选条件
+- **.^[]** 获取第一个匹配项
+- **.$[]** 获取最后一个匹配项
+
+```java
+@Value("#{data.students.?[stuId>1]}")
+private List subList;
+@Value("#{data.map.?[key == '3']}")
+private Map subMap;
+@Value("#{data.students.?[stuId>1].![stuName]}")
+private List nameList;
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

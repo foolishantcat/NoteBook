@@ -1,8 +1,10 @@
-git打tag
+# Git使用笔记
+
+## 1 git打tag
 
 有时候上线一个版本后，出现故障了，需要紧急回顾，如果公司内部还没有成熟的代码回滚平台，那么可以使用打`tag`的方式，为上一个已经在线上运行的版本，打个标签。具体操作如下：
 
-### 列出已有的tag
+### 1.1 列出已有的tag
 
 ```shell
 $ git tag
@@ -10,7 +12,7 @@ $ git tag
 
 加上`-l`命令可以使用通配符来过滤tag
 
-### 新建tag
+### 1.2 新建tag
 
 使用`git tag`命令跟上tag名字，直接创建一个tag
 
@@ -26,7 +28,7 @@ $ git tag v1.0
 $ git tag -a tagName -m "my tag"
 ```
 
-### 查看tag详细信息
+### 1.3 查看tag详细信息
 
 `git show`命令可以查看tag的详细信息，包括commit号等
 
@@ -34,7 +36,7 @@ $ git tag -a tagName -m "my tag"
 $ git show v1.0
 ```
 
-### 给指定的某个commit号加上tag
+### 1.4 给指定的某个commit号加上tag
 
 打tag不必要在head之上，也可以在之前的版本上打，这需要你知道某个提交对象的校验和（`git log`获取，取校验和的前几位数字即可）
 
@@ -42,7 +44,7 @@ $ git show v1.0
 $ git tag -a v1.2 93hjk12d -m"my tag"
 ```
 
-### 推送到远程服务器
+### 1.5 推送到远程服务器
 
 同步提交代码后，使用`git push`来推送到远程服务器一样，`tag`也需要进行推送才能到远端服务器。
 
@@ -50,7 +52,7 @@ $ git tag -a v1.2 93hjk12d -m"my tag"
 
 使用`git push origin --tags`推送本地所有tag
 
-### 切换到某个tag
+### 1.6 切换到某个tag
 
 跟分支一样，可以直接切换到某个tag去。这个时候不位于任何分支，**处于游离状态**，可以考虑基于这个tag创建一个分支。
 
@@ -63,7 +65,7 @@ $ git checkout v1.0
 
 ```
 
-### 删除某个tag
+### 1.7 删除某个tag
 
 - 本地删除
 
@@ -81,7 +83,7 @@ $ git push origin :refs/tags/v1.0
 
 
 
-### git查看某个文件的修改记录
+### 1.8 git查看某个文件的修改记录
 
 ```shell
 git log {filename}
@@ -103,7 +105,7 @@ git show {commitid} {filename}
 
 
 
-## stash使用
+## 2 stash使用
 
 **前提：必须是出于git下的文件，未add到git的文件无法使用**
 
@@ -143,7 +145,7 @@ git show {commitid} {filename}
 
 
 
-## git分支默认含义
+## 3 git分支默认含义
 
 - master：主分支，主要用来版本发布
 - develop：日常开发分支，该分支正常保存了开发的最新代码
@@ -153,7 +155,7 @@ git show {commitid} {filename}
 
 
 
-## merge策略
+## 4 merge策略
 
 > $ git checkout master 			# 进入某个分支
 >
@@ -241,9 +243,61 @@ git show {commitid} {filename}
 
 
 
+## 5 查看分支某人提交
+
+查看某人的提交：
+
+```shell
+$ git log --author=ethancao
+```
+
+查看某人某段时间的提交：
+
+```shell
+$ git log --author=ethancao --since ==2017-09-01 --until=2017-09-28 
+```
+
+还可以更加深入直接显示变更差异：
+
+```shell
+$ git log --author=ethancao --since ==2017-09-01 --until=2017-09-28 -p
+```
 
 
 
+查看两个commit之间的差异：
+
+```shell
+$ git diff commitid_1 head
+```
+
+
+
+## 6 查看分支拉取时间
+
+查看所有分支拉取时间：
+
+```shell
+$ git reflog --date=local --all
+```
+
+查看某个分支的拉取时间
+
+```shell
+$ git reflog show --date=iso master
+```
+
+查看最后一句，可以得到分支的创建时间
+
+
+
+## 7 查看git命令帮助
+
+```shell
+$ git merge --help
+```
+
+一般来说，直接后面跟`--help`可以查看网页版本的帮助信息
 
 
 
